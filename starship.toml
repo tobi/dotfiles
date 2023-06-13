@@ -1,0 +1,56 @@
+add_newline = true
+command_timeout = 300
+continuation_prompt = '[❯❯❯](#A5D6A7) '
+format = "$battery[$username@$hostname](blue)$directory$git_branch$character"
+right_format = "$git_status $git_metrics $cmd_duration"
+
+[character]
+error_symbol = "[❯❯❯](bold red)"
+success_symbol = "[❯](bold #A5D6A7)[❯](bold #FFF59D)[❯](bold #FFAB91)"
+
+[directory]
+repo_root_style = "underline"
+truncation_length = 2
+truncation_symbol = "…/"
+
+[git_branch]
+format = "[$symbol$branch(:$remote_branch)]($style) "
+
+[git_metrics]
+disabled = false
+
+[hostname]
+format = "$ssh_symbol$hostname "
+ssh_only = false
+
+[package]
+disabled = true
+
+[ruby]
+format = " [$symbol$version]($style)"
+symbol = ' 💎'
+
+[python]
+format = " [$symbol$version]($style)"
+
+[username]
+format = "[$user]($style)"
+show_always = true
+style_root = "red bold"
+style_user = "blue"
+
+[gcloud]
+disabled = true
+
+[nodejs]
+disabled = true
+
+[cmd_duration]
+format = ' [$duration]($style) '
+min_time_to_notify = 45000
+show_notifications = true
+
+[battery]
+charging_symbol = '⚡️ '
+discharging_symbol = '💀 '
+format = '[$symbol$percentage]($style) '
