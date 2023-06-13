@@ -1,49 +1,36 @@
 #/bin/bash
+
 set -e
-set -x
 
-if [[ $SHELL != '/bin/zsh' ]]; then
-  echo "need zsh"
-  echo "apt install -y zsh"
-  echo "chsh -u $USER -s /bin/zsh"
-  return 1
-fi
+DOTFILES_PATH=$HOME/dotfiles
 
-# # append "hi" ./text
-# function append() {
-#   [[ grep "$1" "$2" ]] && return 0
-#   echo "$1" >> $2
-# }
+function append() {
+  local text="$1" file="$2"
 
-mkdir -p ~/.ssh
-curl https://github.com/tobi.keys >> ~/.ssh/authorized_keys
+  if ! grep -q "$text" "$file"; then
+    echo -e "$text" >> "$file"
+  fi
+}
+
+mkdir -p $HOME/.ssh
+append "$(curl https://github.com/tobi.keys)" $HOME/.ssh/authorized_keys
 
 if test -d $HOME/dotfiles; then
   echo "dotfiles exists"
 else
-  git clone https://github.com/tobi/dotfiles $HOME/dotfiles
+  git clone https://github.com/tobi/dotfiles $DOTFILES_PATH
 fi
 
 cd $HOME/dotfiles
 
-# hosts need to have a private key so that
-# we can make secrets available to them
-if [[ ! -f ~/.ssh/hostkey ]]; then
-  ssh-keygen -t ed25519 -f ~/.ssh/hostkey
-  local hostkey_pub=$(cat ~/.ssh/hostkey.pub)
-
-  if [[ ! grep "$hostkey_pub" ~/.zshrc ]]; then
-    cd ~/dotfiles
-    echo $hostkey_pub >> secrets.hosts
-    git add secrets.hosts
-    git status
-  fi
-fi
-
 # install shell hooks
-hook="source ./dotfiles/shell"
-if [[ ! grep "$hook" ~/.zshrc ]]; then
-  echo $hook >> ~/.zshrc
+hook="source ~/dotfiles/shell"
+append "$hook" $HOME/.zshrc
+
+if command -v 'zsh' &> /dev/null; then
+  cd $HOME && exec zsh
+else
+  echo "* install zsh!"
 fi
 
 echo "done"

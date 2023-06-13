@@ -1,7 +1,7 @@
 
 if cmd_check "starship"; then
   mkdir -p $HOME/.config
-  ln -nfs $DOTFILES_PATH/starship.toml $HOME/.config/starship.toml
+  ln -nfs $DOTFILES_PATH/src/starship.toml $HOME/.config/starship.toml
   eval $(starship init zsh)
 fi
 

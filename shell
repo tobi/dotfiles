@@ -2,7 +2,6 @@ export EDITOR=nano
 export DOTFILES_PATH=$HOME/dotfiles
 
 # Only allow unique entries in the PATH variable
-typeset -U path
 
 alias 'ls'='ls --color'
 alias 'll'='ls -lh'
@@ -11,6 +10,7 @@ alias 'lla'='ls -lah'
 
 alias 'e'=$EDITOR
 
+typeset -U path
 path+=(
   "${HOME}/bin"
   "${HOME}/.bin"
@@ -23,15 +23,15 @@ path+=(
   "/sbin"
 )
 
-source $DOTFILES_PATH/std.zsh
-source $DOTFILES_PATH/tools.zsh
-source $DOTFILES_PATH/secrets.zsh
+source $DOTFILES_PATH/src/std.zsh
+source $DOTFILES_PATH/src/tools.zsh
+source $DOTFILES_PATH/src/secrets.zsh
 
 # see if we need some local overrides
 [[ -f $HOME/.zshrc.local ]] && source $HOME/.zshrc.local
 
 # some things to grab
-[[ $missing_cmds != "" ]] && echo "* grab missing: $missing_cmds"
+[[ $missing_cmds != "" ]] && echo "* grab missing: '$missing_cmds'"
 
 [[ $commands[fortune] ]] && echo "\n$(fortune -s)\n"
 
