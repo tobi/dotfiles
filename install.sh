@@ -18,7 +18,11 @@ fi
 mkdir -p ~/.ssh
 curl https://github.com/tobi.keys >> ~/.ssh/authorized_keys
 
-[[ ! -d $HOME/dotfiles ]] && git clone https://github.com/tobi/dotfiles $HOME/dotfiles
+if test -d $HOME/dotfiles; then
+  echo "dotfiles exists"
+else
+  git clone https://github.com/tobi/dotfiles $HOME/dotfiles
+fi
 
 cd $HOME/dotfiles
 
