@@ -1,10 +1,6 @@
 
 
 
-if apt_cmd "batcat" "bat"; then
-  alias ccat="/usr/bin/cat"
-  alias cat="batcat"
-fi
 
 if apt_cmd "zoxide"; then
   eval "$(zoxide init zsh)"
@@ -12,10 +8,12 @@ fi
 
 if apt_cmd "rg" "ripgrep"; then
   alias grep="rg"
+  export FZF_DEFAULT_COMMAND='rg --files'
 fi
 
 if apt_cmd "fdfind" "fd-find"; then
   alias fd="fdfind"
+  export FZF_ALT_C_COMMAND='fd --type directory'
 fi
 
 if apt_cmd "exa"; then
@@ -26,13 +24,25 @@ if apt_cmd "exa"; then
 fi
 
 if apt_cmd "fzf"; then
-  # fzf config (hook: alt-c, ctrl-t, ctrl-r)
-  export FZF_DEFAULT_OPTS='--reverse --border --exact --height=60% -m'
+  export FZF_DEFAULT_OPTS='--reverse --border --exact --height=75% -m'
 
-  # use best tools to accelerate
-  [[ $commands[fd] ]] && export FZF_ALT_C_COMMAND='fd --type directory'
-  [[ $commands[rg] ]] && export FZF_DEFAULT_COMMAND='rg --files'
-  [[ $commands[mdfind] ]] && export FZF_CTRL_T_COMMAND="mdfind -onlyin . -name ."
+  export FZF_CTRL_T_OPTS="--bind 'ctrl-/:change-preview-window(down|hidden|)'"
+
+  # fzf config (hook: alt-c, ctrl-t, ctrl-r)
+  [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]] && source /usr/share/doc/fzf/examples/key-bindings.zsh
+fi
+
+if apt_cmd "batcat" "bat"; then
+  alias ccat="/usr/bin/cat"
+
+  local cmd="$(which bat)"
+  [[ ! $! -eq 0 ]] && cmd="$(which batcat)" 
+
+  alias bat="$cmd"
+  alias cat="$cmd"
+  
+  # improve fzf preview
+  export FZF_CTRL_T_OPTS="$FZF_CTRL_T_OPTS --preview '$cmd -n --color=always {}'"  
 fi
 
 if sh_cmd "starship" 'curl -sS https://starship.rs/install.sh | sh'; then
