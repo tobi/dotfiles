@@ -1,7 +1,7 @@
 add_newline = true
 command_timeout = 300
 continuation_prompt = '[❯❯❯](#A5D6A7) '
-format = "$battery[$username@$hostname](blue)$directory$git_branch$character"
+format = "$battery[$username$hostname](blue) $directory$git_branch$character"
 right_format = "$git_status $git_metrics $cmd_duration"
 
 [character]
@@ -20,8 +20,8 @@ format = "[$symbol$branch(:$remote_branch)]($style) "
 disabled = false
 
 [hostname]
-format = "$ssh_symbol$hostname "
-ssh_only = false
+format = " @[$ssh_symbol](bold)$hostname "
+ssh_only = true
 
 [package]
 disabled = true

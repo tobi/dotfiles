@@ -1,27 +1,42 @@
 declare -a missing_cmds=();
+declare -a missing_scripts=();
+declare -a missing_package=();
 
 # for conditional execution
-function cmd_check() {
+function apt_cmd() {
   local cmd="$1"
   local package="${2:-$cmd}"
 
   if [[ $commands[$cmd] ]]; then
     return 0
   else
-    missing_cmds+=("$package")
-
-    function $cmd {
-
-      echo "install $package? y/N: "
-      read -p response
-
-      if [[ $response == [Yy] ]]; then
-          sudo apt install -y "$package"
-      fi
-    }
-
+    missing_cmds+=("$cmd")
+    missing_package+=("$package")
     return 1
   fi
+}
+
+# for conditional execution
+function sh_cmd() {
+  local cmd="$1"
+  local script="$2"
+  
+  if [[ $commands[$cmd] ]]; then
+    return 0
+  else
+    missing_cmds+=("$cmd")
+    missing_scripts+=("$script")
+    return 1
+  fi
+}
+
+function eeinstall() {
+  sudo apt install -y $missing_package;
+  # for each cmd
+  for i in {1..${#missing_cmds[@]}}; do
+    local script=${missing_scripts[$i]}
+    bash -c "$script"
+  done
 }
 
 function append_to_file() {

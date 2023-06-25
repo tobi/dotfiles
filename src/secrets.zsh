@@ -1,25 +1,6 @@
-# identity="-i ~/.ssh/id_ed25519 -i ~/.ssh/id_rsa"
-
 local id="--identity $HOME/.ssh/id_ed25519"
-local secrets_file=$DOTFILES_PATH/secrets.age
-local secrets_hosts=$DOTFILES_PATH/secrets.hosts
-
-# hosts need to have a private key so that
-# we can make secrets available to them
-if [[ ! -f ~/.ssh/hostkey.pub ]]; then
-  ssh-keygen -t ed25519 -f ~/.ssh/hostkey
-  hostkey_pub=$(cat ~/.ssh/hostkey.pub)
-
-  if ! grep "$hostkey_pub" ~/.zshrc; then
-    append "$hostkey_pub" "$DOTFILES_PATH/secrets.hosts"
-    cd $DOTFILES_PATH
-    git add secrets.hosts
-    git status
-    cd $HOME
-    echo "add:\n\n$hostkey_pub\n  at https://github.com/tobi/dotfiles/edit/main/secrets.hosts"
-  fi
-fi
-
+local secrets_file=$DOTFILES_PATH/src/secrets.age
+local secrets_hosts=$DOTFILES_PATH/src/secrets.hosts
 
 function eage() {
   # decompress
@@ -36,15 +17,45 @@ function eage() {
   [[ $! != 0 ]] && (echo "cannot encrypt"; return 1)
 
   echo "updating..."
-  #echo $SECRETS > $DOTFILES_PATH/secrets.age
+  echo $SECRETS > $DOTFILES_PATH/secrets.age
 }
 
-# load them in shell
-echo -n "* loading secrets... "
-if [[ -f ~/.ssh/hostkey ]]; then
-  eval $(age -d -i ~/.ssh/hostkey $secrets_file)
-  [[ $! == 0 ]] && echo "[PASS]" || echo "[FAIL]"
+function ekey() {
+  # hosts need to have a private key so that
+  # we can make secrets available to them
+  if [[ ! -f ~/.ssh/hostkey.pub ]]; then
+    echo "generating hostkey..."
+    ssh-keygen -t ed25519 -f ~/.ssh/hostkey
+    hostkey_pub=$(cat ~/.ssh/hostkey.pub)
+  else
+    echo "hotkey exists..."
+  fi
 
+  if ! grep "$hostkey_pub" $secrets_hosts; then
+    append "$hostkey_pub" "$secrets_hosts"
+    cd $DOTFILES_PATH/src
+    git add secrets.hosts
+    git status
+    cd $HOME
+    echo "add:\n\n$hostkey_pub\n  at https://github.com/tobi/dotfiles/edit/main/secrets.hosts"
+  else
+    echo "hostkey already in secrets.hosts"
+  fi
+
+}
+
+if apt_cmd "age"; then
+
+
+  # load them in shell
+  echo -n "* loading secrets... "
+  if [[ -f ~/.ssh/hostkey ]]; then
+    eval $(age -d -i ~/.ssh/hostkey $secrets_file)
+    [[ $! == 0 ]] && echo "[PASS]" || echo "[FAIL]"
+
+  else
+    echo "[FAIL]: no ~/.ssh/hostkey"
+  fi
 else
-  echo "[FAIL]: no ~/.ssh/hostkey"
+  echo "* install age to get secrets access"
 fi

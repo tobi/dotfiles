@@ -31,7 +31,7 @@ source $DOTFILES_PATH/src/secrets.zsh
 [[ -f $HOME/.zshrc.local ]] && source $HOME/.zshrc.local
 
 # some things to grab
-[[ $missing_cmds != "" ]] && echo "* grab missing: '$missing_cmds'"
+[[ $missing_cmds != "" ]] && echo "* grab missing: '$missing_cmds' with 'eeinstall'"
 
 [[ $commands[fortune] ]] && echo "\n$(fortune -s)\n"
 
