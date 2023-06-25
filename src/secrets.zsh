@@ -5,19 +5,34 @@ local secrets_hosts=$DOTFILES_PATH/src/secrets.hosts
 function eage() {
   # decompress
   local SECRETS=$(age -d -i ~/.ssh/id_ed25519 $secrets_file)
-  [[ $! != 0 ]] && echo "!!!cannot decrypt";
+  if [[ $? != 0 ]]; then 
+    echo "!!! cannot decrypt" 
+    return 1;
+  fi
 
+  tmpfile=$(mktemp)
+  echo "$SECRETS" > $tmpfile
   # update
-  SECRETS=$(echo $SECRETS | gum write --char-limit=0)
-  echo $!
-  [[ $! != 0 ]] && (echo "cannot update"; return 1)
+  nano $tmpfile
+  if [[ $? != 0 ]]; then 
+    echo "aborting"; 
+    rm $tmpfile
+    return 1
+  else
+    SECRETS=$(cat $tmpfile)
+    rm $tmpfile
+  fi
 
   # save
   SECRETS=$(echo $SECRETS | age -e -R $secrets_hosts -i ~/.ssh/id_ed25519 -o $secrets_file -)
-  [[ $! != 0 ]] && (echo "cannot encrypt"; return 1)
+  if [[ $? != 0 ]]; then 
+    echo "cannot encrypt" 
+    return 1
+  fi
 
   echo "updating..."
   echo $SECRETS > $DOTFILES_PATH/secrets.age
+  return 0
 }
 
 function ekey() {
@@ -46,8 +61,13 @@ if apt_cmd "age"; then
   # load them in shell
   echo -n "* loading secrets... "
   if [[ -f ~/.ssh/hostkey ]]; then
-    eval $(age -d -i ~/.ssh/hostkey $secrets_file)
-    [[ $! == 0 ]] && echo "[PASS]" || echo "[FAIL]"
+    local env=$(age -d -i ~/.ssh/hostkey $secrets_file)
+    if [[ $? != 0 ]]; then 
+      echo "[FAIL]"; 
+      return 1;
+    fi
+    eval "$env"
+    echo "[OK]"
 
   else
     echo "[FAIL]: no ~/.ssh/hostkey"
