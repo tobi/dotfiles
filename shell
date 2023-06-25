@@ -23,6 +23,9 @@ path+=(
   "/sbin"
 )
 
+setopt inc_append_history
+setopt share_history
+
 source $DOTFILES_PATH/src/std.zsh
 source $DOTFILES_PATH/src/tools.zsh
 source $DOTFILES_PATH/src/secrets.zsh

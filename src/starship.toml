@@ -10,7 +10,7 @@ success_symbol = "[❯](bold #A5D6A7)[❯](bold #FFF59D)[❯](bold #FFAB91)"
 
 [directory]
 repo_root_style = "underline"
-truncation_length = 2
+truncation_length = 3
 truncation_symbol = "…/"
 
 [git_branch]
