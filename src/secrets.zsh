@@ -26,17 +26,13 @@ function ekey() {
   if [[ ! -f ~/.ssh/hostkey.pub ]]; then
     echo "generating hostkey..."
     ssh-keygen -t ed25519 -f ~/.ssh/hostkey
-    hostkey_pub=$(cat ~/.ssh/hostkey.pub)
   else
-    echo "hotkey exists..."
+    echo "hotkey already exists..."
   fi
 
+  hostkey_pub=$(cat ~/.ssh/hostkey.pub)
+
   if ! grep "$hostkey_pub" $secrets_hosts; then
-    append "$hostkey_pub" "$secrets_hosts"
-    cd $DOTFILES_PATH/src
-    git add secrets.hosts
-    git status
-    cd $HOME
     echo "add:\n\n$hostkey_pub\n  at https://github.com/tobi/dotfiles/edit/main/secrets.hosts"
   else
     echo "hostkey already in secrets.hosts"

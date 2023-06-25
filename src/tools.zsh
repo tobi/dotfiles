@@ -33,13 +33,12 @@ if apt_cmd "fzf"; then
 fi
 
 if apt_cmd "batcat" "bat"; then
-  alias ccat="/usr/bin/cat"
 
   local cmd="$(which bat)"
   [[ ! $! -eq 0 ]] && cmd="$(which batcat)" 
 
   alias bat="$cmd"
-  alias cat="$cmd"
+  alias less="$cmd"
   
   # improve fzf preview
   export FZF_CTRL_T_OPTS="$FZF_CTRL_T_OPTS --preview '$cmd -n --color=always {}'"  

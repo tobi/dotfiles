@@ -44,5 +44,7 @@ function append_to_file() {
 
   if ! grep -q "$text" "$file"; then
     echo -e "$text" >> "$file"
+    return 0
   fi
+  return 1
 }
