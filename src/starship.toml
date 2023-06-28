@@ -20,7 +20,7 @@ format = "[$symbol$branch(:$remote_branch)]($style) "
 disabled = false
 
 [hostname]
-format = " @[$ssh_symbol](bold)$hostname "
+format = " ([$ssh_symbol$hostname ](bold #77dd77))"
 ssh_only = true
 
 [package]
