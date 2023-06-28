@@ -20,7 +20,7 @@ function apt_cmd() {
 function sh_cmd() {
   local cmd="$1"
   local script="$2"
-  
+
   if [[ $commands[$cmd] ]]; then
     return 0
   else
@@ -30,7 +30,7 @@ function sh_cmd() {
   fi
 }
 
-function eeinstall() {
+function einstall() {
   sudo apt install -y $missing_package;
   # for each cmd
   for i in {1..${#missing_cmds[@]}}; do
