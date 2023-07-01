@@ -7,6 +7,7 @@ alias 'ls'='ls --color'
 alias 'll'='ls -lh'
 alias 'la'='ls -ah'
 alias 'lla'='ls -lah'
+alias '..'='cd ..'
 
 alias 'e'=$EDITOR
 
@@ -23,10 +24,14 @@ path+=(
   "/sbin"
 )
 
-setopt inc_append_history
-setopt share_history
+export HISTFILE=~/.cache/.zsh_history
+export SAVEHIST=100
+export HISTSIZE=10000
+setopt HIST_IGNORE_DUPS
+setopt INC_APPEND_HISTORY
 
 source $DOTFILES_PATH/src/std.zsh
+source $DOTFILES_PATH/src/prompt.zsh
 source $DOTFILES_PATH/src/tools.zsh
 source $DOTFILES_PATH/src/secrets.zsh
 

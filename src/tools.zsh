@@ -35,17 +35,20 @@ fi
 if apt_cmd "batcat" "bat"; then
 
   local cmd="$(which bat)"
-  [[ ! $! -eq 0 ]] && cmd="$(which batcat)" 
+  [[ ! $! -eq 0 ]] && cmd="$(which batcat)"
 
   alias bat="$cmd"
   alias less="$cmd"
-  
+
   # improve fzf preview
-  export FZF_CTRL_T_OPTS="$FZF_CTRL_T_OPTS --preview '$cmd -n --color=always {}'"  
+  export FZF_CTRL_T_OPTS="$FZF_CTRL_T_OPTS --preview '$cmd -n --color=always {}'"
 fi
 
-if sh_cmd "starship" 'curl -sS https://starship.rs/install.sh | sh'; then
-  mkdir -p $HOME/.config
-  ln -nfs $DOTFILES_PATH/src/starship.toml $HOME/.config/starship.toml
-  eval $(starship init zsh)
+# if sh_cmd "2starship" 'curl -sS https://starship.rs/install.sh | sh'; then
+#   mkdir -p $HOME/.config
+#   ln -nfs $DOTFILES_PATH/src/starship.toml $HOME/.config/starship.toml
+#   eval $(starship init zsh)
+# fi
+
+if apt_cmd "age"; then
 fi

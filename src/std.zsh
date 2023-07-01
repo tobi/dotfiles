@@ -31,12 +31,14 @@ function sh_cmd() {
 }
 
 function einstall() {
+  set +x
   sudo apt install -y $missing_package;
   # for each cmd
   for i in {1..${#missing_cmds[@]}}; do
     local script=${missing_scripts[$i]}
     bash -c "$script"
   done
+  set -x
 }
 
 function append_to_file() {
@@ -47,4 +49,9 @@ function append_to_file() {
     return 0
   fi
   return 1
+}
+
+
+function reload() {
+  source ~/.zshrc
 }

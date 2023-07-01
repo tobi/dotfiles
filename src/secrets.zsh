@@ -5,8 +5,8 @@ local secrets_hosts=$DOTFILES_PATH/src/secrets.hosts
 function eage() {
   # decompress
   local SECRETS=$(age -d -i ~/.ssh/id_ed25519 $secrets_file)
-  if [[ $? != 0 ]]; then 
-    echo "!!! cannot decrypt" 
+  if [[ $? != 0 ]]; then
+    echo "!!! cannot decrypt"
     return 1;
   fi
 
@@ -14,8 +14,8 @@ function eage() {
   echo "$SECRETS" > $tmpfile
   # update
   nano $tmpfile
-  if [[ $? != 0 ]]; then 
-    echo "aborting"; 
+  if [[ $? != 0 ]]; then
+    echo "aborting";
     rm $tmpfile
     return 1
   else
@@ -25,8 +25,8 @@ function eage() {
 
   # save
   SECRETS=$(echo $SECRETS | age -e -R $secrets_hosts -i ~/.ssh/id_ed25519 -o $secrets_file -)
-  if [[ $? != 0 ]]; then 
-    echo "cannot encrypt" 
+  if [[ $? != 0 ]]; then
+    echo "cannot encrypt"
     return 1
   fi
 
@@ -55,23 +55,18 @@ function ekey() {
 
 }
 
-if apt_cmd "age"; then
-
-
-  # load them in shell
+function eset() {
   echo -n "* loading secrets... "
   if [[ -f ~/.ssh/hostkey ]]; then
     local env=$(age -d -i ~/.ssh/hostkey $secrets_file)
-    if [[ $? != 0 ]]; then 
-      echo "[FAIL]"; 
+    if [[ $? != 0 ]]; then
+      echo "[FAIL]";
       return 1;
     fi
     eval "$env"
     echo "[OK]"
-
   else
     echo "[FAIL]: no ~/.ssh/hostkey"
   fi
-else
-  echo "* install age to get secrets access"
-fi
+}
+
