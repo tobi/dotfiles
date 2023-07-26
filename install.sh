@@ -31,9 +31,11 @@ if command -v 'zsh' &> /dev/null; then
   cd $HOME && exec zsh
 else
   echo "* install zsh!"
-  echo "  sudo apt install zsh"
+  sudo apt install zsh
 fi
 
 echo "chsh -s $(which zsh)"
+chsh -s "$(which zsh)"
+
 echo
 echo "done"

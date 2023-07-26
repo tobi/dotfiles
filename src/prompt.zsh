@@ -6,19 +6,23 @@ function git_branch_to_env() {
 
 
 local chevron="%F{#A5D6A7}❯%F{FFF59D}❯%F{#FFAB91}❯%f"
-[[ $SSH_CONNECTION ]] && local host="%F{#FFAB91}@ssh:%n" || local host=""
+[[ $SSH_CONNECTION ]] && local host="%F{green}[$(hostname)] " || local host=""
 
 function update_prompt() {
   local branch=""
   local rprompt=""
 
   if [[ $GIT_BRANCH != "" ]]; then
-    branch=" %F{cyan}($GIT_BRANCH) "
+    branch=" %F{cyan}($GIT_BRANCH)"
     rprompt="%F{green}(git) $GIT_BRANCH: +$GIT_MODS %f"
   fi
 
+  if [[ $CONDA_DEFAULT_ENV != "" ]]; then
+    rprompt="$rprompt %F{magenta}(conda) $CONDA_DEFAULT_ENV %f"
+  fi
+
   # PS1
-  export PROMPT="%F{#A5D6A7}%n$host %F{blue}%~$branch $chevron%f "
+  export PROMPT="$host%F{blue}%n %F{blue}%~$branch $chevron%f "
   export RPROMPT="$rprompt"
 
   # terminal title
