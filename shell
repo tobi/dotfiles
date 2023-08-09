@@ -35,6 +35,8 @@ source $DOTFILES_PATH/src/prompt.zsh
 source $DOTFILES_PATH/src/tools.zsh
 source $DOTFILES_PATH/src/secrets.zsh
 
+load_secrets
+
 # see if we need some local overrides
 [[ -f $HOME/.zshrc.local ]] && source $HOME/.zshrc.local
 
