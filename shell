@@ -17,6 +17,7 @@ path+=(
   "${HOME}/.bin"
   "${HOME}/.local/bin"
   "${HOME}/.cargo/bin"
+  "${HOME}/dotfiles/bin"
   "/usr/local/bin"
   "/usr/bin"
   "/usr/sbin"
