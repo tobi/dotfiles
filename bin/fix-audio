@@ -1,0 +1,48 @@
+#!/usr/bin/env ruby
+# Required parameters:
+# @raycast.schemaVersion 1
+# @raycast.title Fix Audio
+# @raycast.mode compact
+# Optional parameters:
+# @raycast.icon 🎙️
+
+require 'json'
+
+# first == highest
+input_priorities = [
+  "MacBook Pro Microphone",
+  "Shure MV7",
+]
+
+# first == highest
+output_priorities = [
+  "Audioengine 2+",
+  "CalDigit TS4 Audio - Rear",
+  "CalDigit TS4 Audio - Front",
+  "MacBook Pro Speakers"
+]
+
+
+unless system("SwitchAudioSource -c")
+  system("brew install switchaudio-osx")
+end
+
+devices = `SwitchAudioSource -a -f json`.split("\n").map { |l| JSON.parse(l) }
+
+def highest_priority_device(devices, prios)
+  ordered = devices.sort_by! do |device|
+    prios.index(device['name']) or (prios.size + 1)
+  end
+
+  return ordered.first
+end
+
+inputs, outputs = devices.partition { |d| d['type'] == 'input' }
+
+input = highest_priority_device(inputs, input_priorities)
+system("SwitchAudioSource -s #{input['name'].inspect} -t input")
+
+output = highest_priority_device(outputs, output_priorities)
+system("SwitchAudioSource -s #{output['name'].inspect} -t output")
+
+puts "Now: #{input['name']} // #{output['name']}"
