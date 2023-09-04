@@ -1,0 +1,17 @@
+#!/bin/bash
+
+host="${1:-localhost}"
+port="${2:-7654}"
+set +x
+
+cmd="jupyter notebook --notebook-dir='./src' --no-browser --ServerApp.allow_origin='*' --port=$port --ip=127.0.0.1 --NotebookApp.kernel_name=$host"
+
+if [[ "$host" == "localhost" ]]; then
+    echo "Starting notebook on localhost:$port"
+    $cmd
+else
+
+    echo "Starting notebook on $host:$port"
+    ssh -t -L $port:localhost:$port $host /bin/zsh -i -c \"$cmd\"
+
+fi
