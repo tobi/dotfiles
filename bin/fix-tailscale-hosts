@@ -1,0 +1,67 @@
+#!/usr/bin/env ruby
+
+require 'json'
+require 'fileutils'
+
+bin = if File.exist?("/Applications/Tailscale.app/Contents/MacOS/Tailscale")
+  "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+else
+  "tailscale"
+end
+
+
+
+tailscale = JSON.parse( `#{bin} status --json ` )
+
+# dirname = File.join( ENV['HOME'], "/.ssh/include" )
+# FileUtils.mkdir_p( dirname )
+
+# File.open("#{dirname}/tailscale", 'w+') do |f|
+#   puts "Writing #{dirname}/tailscale"
+
+#   tailscale['Peer'].each do |node, params|
+
+#     puts "  #{params['HostName']}"
+#     host, ip = params['HostName'], params['TailscaleIPs'].first
+
+#     f.puts "# #{host}.lutke.com.beta.tailscale.net"
+#     f.puts "Host #{host} "
+#     f.puts "  HostName #{ip}"
+#     f.puts "  User #{ENV["USER"]}"
+#     f.puts
+
+#   end
+# end
+
+hosts = File.read("/etc/hosts")
+
+tailscale = tailscale['Peer'].each_with_object({}) do |(node, params), hash|
+  hash[params['HostName']] = params['TailscaleIPs'].first
+end
+
+tailscale.delete("localhost")
+
+require 'date'
+require 'fileutils'
+FileUtils.cp "/etc/hosts", "/tmp/hosts.old.#{DateTime.now.strftime("%Y-%m-%d-%H%M%S")}"
+
+File.open("/etc/hosts", "w+") do |fp|
+  hosts.each_line do |line|
+    line =~ /\s(\S+)$/
+
+    # skip lines that we have in our tailscale index
+    unless tailscale[$1]
+      fp.puts(line)
+    end
+  end
+
+
+  fp.puts
+  fp.puts("# added by tailscale script") if
+
+  hosts.index("# added by tailscale script")
+  fp.puts
+  tailscale.each do |host, ip|
+    fp.puts("#{ip}\t#{host}")
+  end
+end
