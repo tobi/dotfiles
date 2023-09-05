@@ -10,13 +10,14 @@ require 'json'
 
 # first == highest
 input_priorities = [
-  "MacBook Pro Microphone",
   "Shure MV7",
+  "MacBook Pro Microphone",
 ]
 
 # first == highest
 output_priorities = [
   "Audioengine 2+",
+  "Studio Display Speakers",
   "CalDigit TS4 Audio - Rear",
   "CalDigit TS4 Audio - Front",
   "MacBook Pro Speakers"
