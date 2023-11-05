@@ -1,7 +1,4 @@
 
-
-
-
 if apt_cmd "zoxide"; then
   eval "$(zoxide init zsh)"
 fi
@@ -45,4 +42,5 @@ if apt_cmd "batcat" "bat"; then
 fi
 
 if apt_cmd "age"; then
+  # pass
 fi

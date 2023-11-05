@@ -1,3 +1,6 @@
+zmodload zsh/zprof
+profile() { zprof | fzf --height 80%  }
+
 declare -a missing_cmds=();
 declare -a missing_scripts=();
 declare -a missing_package=();
@@ -43,6 +46,10 @@ function einstall() {
 
 function append_to_file() {
   local text="$1" file="$2"
+
+  if [ ! -f "$file" ]; then
+    touch "$file"
+  fi
 
   if ! grep -q "$text" "$file"; then
     echo -e "$text" >> "$file"
