@@ -1,50 +1,74 @@
 export EDITOR=nano
-export DOTFILES_PATH=$HOME/dotfiles
+export DOTFILES_PATH="$HOME/dotfiles"
 
 # Only allow unique entries in the PATH variable
+# This function updates PATH by removing duplicates
+add_path() {
+  if ! [[ ":$PATH:" == *":$1:"* ]]; then
+    export PATH="$1:$PATH"
+  fi
+}
 
-alias 'ls'='ls --color'
-alias 'll'='ls -lh'
-alias 'la'='ls -ah'
-alias 'lla'='ls -lah'
-alias '..'='cd ..'
+alias ls='ls --color'
+alias ll='ls -lh'
+alias la='ls -ah'
+alias lla='ls -lah'
+alias ..='cd ..'
 
-alias 'e'=$EDITOR
+alias e="$EDITOR"
 
-typeset -U path
-path+=(
-  "${HOME}/bin"
-  "${HOME}/.bin"
-  "${HOME}/.local/bin"
-  "${HOME}/.cargo/bin"
-  "${HOME}/dotfiles/bin"
-  "/usr/local/bin"
-  "/usr/bin"
-  "/usr/sbin"
-  "/bin"
-  "/sbin"
-)
+# Adding paths without creating duplicates
+add_path "${HOME}/bin"
+add_path "${HOME}/.bin"
+add_path "${HOME}/.local/bin"
+add_path "${HOME}/.cargo/bin"
+add_path "${HOME}/dotfiles/bin"
+add_path "/usr/local/bin"
+add_path "/usr/bin"
+add_path "/usr/sbin"
+add_path "/bin"
+add_path "/sbin"
 
-export HISTFILE=~/.cache/.zsh_history
+# history conifg
+export HISTFILE="$HOME/.cache/.zsh_history"
 export SAVEHIST=100
 export HISTSIZE=10000
-setopt HIST_IGNORE_DUPS
-setopt INC_APPEND_HISTORY
+# Equivalent of zsh's HIST_IGNORE_DUPS in Bash
+export HISTCONTROL=ignoredups:erasedups
+# Appending to the history file, equivalent of INC_APPEND_HISTORY in zsh
+#
 
-source $DOTFILES_PATH/src/std.zsh
-source $DOTFILES_PATH/src/prompt.zsh
-source $DOTFILES_PATH/src/tools.zsh
-source $DOTFILES_PATH/src/secrets.zsh
+if [ -n "$BASH_VERSION" ]; then
+  shopt -s histappend
+  export SHELL_ENV="bash"
+elif [ -n "$ZSH_VERSION" ]; then
+  export SHELL_ENV="zsh"
 
+fi
+
+source "$DOTFILES_PATH/src/std.sh"
+source "$DOTFILES_PATH/src/prompt.sh"
+source "$DOTFILES_PATH/src/tools.sh"
+source "$DOTFILES_PATH/src/secrets.sh"
+source "$DOTFILES_PATH/src/vendor.$VENDOR.sh"
+
+update_prompt
 load_secrets
 
-# see if we need some local overrides
-[[ -f $HOME/.zshrc.local ]] && source $HOME/.zshrc.local
+# See if we need some local overrides
+if [[ -f "$HOME/.$(echo $SHELL_ENV)rc.local" ]]; then
+  source "$HOME/.$(echo $SHELL_ENV)rc.local"
+fi
 
-# some things to grab
-[[ $missing_cmds != "" ]] && echo "* grab missing: '$missing_cmds' with 'einstall'"
+# # Some things to grab
+if [[ $missing_cmds != "" ]]; then
+  echo "* grab missing: '$missing_cmds' with 'install_missing'"
+fi
 
-[[ $commands[fortune] ]] && echo "\n$(fortune -s)\n"
+# # Check if 'fortune' command is available and if so, display a random fortune
+if command -v fortune &>/dev/null; then
+  echo -e "\n$(fortune -s)\n"
+fi
 
-# all good, ignore the appended crap
+# Return true to indicate successful sourcing of the file
 return 0
