@@ -1,6 +1,36 @@
 missing_cmds=()
-missing_scripts=()
-missing_package=()
+missing_apt_package=()
+missing_brew_package=()
+
+command_present() {
+
+  # test if any of $* is present
+  for i in "$@"; do
+    if command -v "$i" >/dev/null 2>&1; then
+      return 0
+    fi
+  done
+
+  missing_cmds+=("$cmd")
+  return 1
+}
+
+add_apt_package() {
+  local package="$1"
+  add_apt_package "$package"
+  add_brew_package "$package"
+}
+
+add_apt_package() {
+  local package="$1"
+  missing_apt_package+=("$package")
+}
+
+add_brew_package() {
+  local package="$1"
+  missing_brew_package+=("$package")
+}
+
 
 # Function to check for commands, adjusted for Bash
 check_cmd_or_install() {
@@ -33,11 +63,16 @@ sh_cmd() {
 # Function to install missing commands, adjusted for Bash loop syntax
 install_missing() {
   set +x
-  sudo apt install -y "${missing_package[@]}"
-  for i in "${!missing_cmds[@]}"; do
-    local script=${missing_scripts[$i]}
-    bash -c "$script"
-  done
+
+  if [[ "$VENDOR" == "ubuntu" || "$VENDOR" == "debian" ]]; then
+    sudo apt update
+    sudo apt install -y "${missing_apt_package[@]}"
+  fi
+
+  if [[ "$VENDOR" == "apple" ]]; then
+    brew insall "${missing_brew_package[@]}"
+  fi
+
   set -x
 }
 
