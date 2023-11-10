@@ -43,7 +43,6 @@ if [ -n "$BASH_VERSION" ]; then
   export SHELL_ENV="bash"
 elif [ -n "$ZSH_VERSION" ]; then
   export SHELL_ENV="zsh"
-
 fi
 
 source "$DOTFILES_PATH/src/std.sh"
@@ -56,8 +55,8 @@ update_prompt
 load_secrets
 
 # See if we need some local overrides
-if [[ -f "$HOME/.$(echo $SHELL_ENV)rc.local" ]]; then
-  source "$HOME/.$(echo $SHELL_ENV)rc.local"
+if [[ -f "$HOME/.${SHELL_ENV}rc.local" ]]; then
+  source "$HOME/.${SHELL_ENV}rc.local"
 fi
 
 # # Some things to grab
@@ -66,7 +65,7 @@ if [[ $missing_cmds != "" ]]; then
 fi
 
 # # Check if 'fortune' command is available and if so, display a random fortune
-if command -v fortune &>/dev/null; then
+if command_present "fortune"; then
   echo -e "\n$(fortune -s)\n"
 fi
 

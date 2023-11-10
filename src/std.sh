@@ -15,7 +15,7 @@ command_present() {
   return 1
 }
 
-add_apt_package() {
+add_package() {
   local package="$1"
   add_apt_package "$package"
   add_brew_package "$package"
@@ -70,7 +70,7 @@ install_missing() {
   fi
 
   if [[ "$VENDOR" == "apple" ]]; then
-    brew insall "${missing_brew_package[@]}"
+    brew install "${missing_brew_package[@]}"
   fi
 
   set -x

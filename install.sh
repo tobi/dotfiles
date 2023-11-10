@@ -7,6 +7,8 @@ DOTFILES_PATH=$HOME/dotfiles
 function append() {
   local text="$1" file="$2"
 
+  [[ -f $file ]] && touch $file
+
   if ! grep -q "$text" "$file"; then
     echo "$text" >>"$file"
   fi

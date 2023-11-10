@@ -1,7 +1,3 @@
-# if check_cmd_or_install "zoxide"; then
-#   eval "$(zoxide init $SHELL_ENV)"
-# fi
-
 if command_present "zoxide"; then
   eval "$(zoxide init $SHELL_ENV)"
 else
