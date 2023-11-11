@@ -1,14 +1,15 @@
-if command_present "zoxide"; then
-  eval "$(zoxide init $SHELL_ENV)"
-else
-  add_package "zoxide"
-fi
 
 if command_present "rg"; then
   alias grep="rg"
   export FZF_DEFAULT_COMMAND='rg --files'
 else
   add_package "ripgrep"
+fi
+
+if command_present "zoxide"; then
+  eval "$(zoxide init $SHELL_ENV)"
+else
+  add_package "zoxide"
 fi
 
 if command_present "fdfind"; then

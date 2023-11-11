@@ -11,7 +11,7 @@ command_present() {
     fi
   done
 
-  missing_cmds+=("$cmd")
+  missing_cmds+=$@
   return 1
 }
 
@@ -29,6 +29,16 @@ add_apt_package() {
 add_brew_package() {
   local package="$1"
   missing_brew_package+=("$package")
+}
+
+add_package_report() {
+  if [[ $VENDOR == "apple" ]]; then
+    [[ ${#missing_brew_package[@]} -eq 0 ]] && return 0
+    echo "* grab missing: '$missing_brew_package' with 'install_missing'"
+  else
+    [[ ${#missing_apt_package[@]} -eq 0 ]] && return 0
+    echo "* grab missing: '$missing_apt_package' with 'install_missing'"
+  fi
 }
 
 

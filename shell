@@ -24,10 +24,12 @@ add_path "${HOME}/.local/bin"
 add_path "${HOME}/.cargo/bin"
 add_path "${HOME}/dotfiles/bin"
 add_path "/usr/local/bin"
+add_path "/usr/local/bin"
 add_path "/usr/bin"
 add_path "/usr/sbin"
 add_path "/bin"
 add_path "/sbin"
+add_path "/opt/homebrew/bin"
 
 # history conifg
 export HISTFILE="$HOME/.cache/.zsh_history"
@@ -60,14 +62,7 @@ if [[ -f "$HOME/.${SHELL_ENV}rc.local" ]]; then
 fi
 
 # # Some things to grab
-if [[ $missing_cmds != "" ]]; then
-  echo "* grab missing: '$missing_cmds' with 'install_missing'"
-fi
-
-# # Check if 'fortune' command is available and if so, display a random fortune
-if command_present "fortune"; then
-  echo -e "\n$(fortune -s)\n"
-fi
+add_package_report
 
 # Return true to indicate successful sourcing of the file
 return 0
