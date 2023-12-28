@@ -7,7 +7,7 @@ DOTFILES_PATH=$HOME/dotfiles
 function append() {
   local text="$1" file="$2"
 
-  [[ -f $file ]] && touch $file
+  [[ ! -f $file ]] && touch $file
 
   if ! grep -q "$text" "$file"; then
     echo "$text" >>"$file"
@@ -28,9 +28,12 @@ fi
 cd $HOME/dotfiles
 
 echo "installing dotfiles to zsh/bash"
-hook="source \$HOME/dotfiles/shell"
-append "$hook" $HOME/.zshrc
-append "$hook" $HOME/.bashrc
+echo "source \$HOME/dotfiles/shell\nsource \$HOME/.zshrc.local" > ~/.zshrc
+touch ~/.zshrc.local
+
+chmod -w .zshrc
+ln -nfs .zshrc .bashrc
 
 echo
 echo "done"
+
