@@ -1,4 +1,3 @@
-
 if command_present "rg"; then
   alias grep="rg"
   export FZF_DEFAULT_COMMAND='rg --files'
@@ -14,6 +13,10 @@ fi
 
 if command_present "fdfind"; then
   alias fd="fdfind"
+fi
+
+if command_present "batcat"; then
+  alias bat="batcat"
 fi
 
 if command_present "fd"; then
