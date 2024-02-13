@@ -1,0 +1,7 @@
+#/bin/bash
+
+if [[ -x "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]]; then
+  exec "/Applications/Tailscale.app/Contents/MacOS/Tailscale" $*
+fi
+
+tailscale
