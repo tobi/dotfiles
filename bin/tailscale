@@ -4,4 +4,9 @@ if [[ -x "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]]; then
   exec "/Applications/Tailscale.app/Contents/MacOS/Tailscale" $*
 fi
 
-tailscale
+if [[ -x "/usr/bin/tailscale" ]]; then
+  exec /usr/bin/tailscale $*
+fi
+
+else "Tailscale is not installed. Please install it first."
+exit 1
