@@ -10,6 +10,7 @@ require 'json'
 
 # first == highest
 input_priorities = [
+  "CM-15",
   "Shure MV7",
   "MacBook Pro Microphone",
 ]
