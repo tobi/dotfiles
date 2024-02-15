@@ -4,7 +4,7 @@ set -e
 
 DOTFILES_PATH=$HOME/dotfiles
 
-function append() {
+append() {
   local text="$1" file="$2"
 
   [[ ! -f $file ]] && touch $file
