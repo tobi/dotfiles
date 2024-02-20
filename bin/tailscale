@@ -1,12 +1,10 @@
-#/bin/bash
+#!/bin/bash
 
 if [[ -x "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]]; then
-  exec "/Applications/Tailscale.app/Contents/MacOS/Tailscale" $*
+  exec "/Applications/Tailscale.app/Contents/MacOS/Tailscale" "$@"
+elif [[ -x "/usr/bin/tailscale" ]]; then
+  exec /usr/bin/tailscale "$@"
+else
+  echo "Tailscale is not installed. Please install it first."
+  exit 1
 fi
-
-if [[ -x "/usr/bin/tailscale" ]]; then
-  exec /usr/bin/tailscale $*
-fi
-
-else "Tailscale is not installed. Please install it first."
-exit 1
