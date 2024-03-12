@@ -4,6 +4,7 @@ secrets_file="${DOTFILES_PATH}/src/secrets.age"
 secrets_hosts="${DOTFILES_PATH}/src/secrets.hosts"
 
 eage() {
+  echo $secrets_file
   SECRETS=$(age -d "$id" "$secrets_file" 2>/dev/null) || {
     printf "!!! cannot decrypt\n"
     return 1
@@ -11,7 +12,7 @@ eage() {
 
   tmpfile=$(mktemp)
 
-  printf "%s" "$SECRETS" > "$tmpfile"
+  printf "%s" "$SECRETS" >"$tmpfile"
   unset $SECRETS
   nano "$tmpfile" || {
     printf "!!! aborting\n"
@@ -36,7 +37,7 @@ ekey() {
     printf "hostkey already exists...\n"
   fi
 
-  hostkey_pub=$(< "$HOME/.ssh/hostkey.pub")
+  hostkey_pub=$(<"$HOME/.ssh/hostkey.pub")
 
   if ! grep -qF -- "$hostkey_pub" "$secrets_hosts"; then
     printf "add:\n\n%s\n\n  at https://github.com/tobi/dotfiles/edit/main/src/secrets.hosts\n" "$hostkey_pub"

@@ -12,6 +12,7 @@ require 'json'
 input_priorities = [
   "CM-15",
   "Shure MV7",
+  "Scarlett Solo USB",
   "MacBook Pro Microphone",
 ]
 
@@ -21,6 +22,7 @@ output_priorities = [
   "CalDigit TS4 Audio - Rear",
   "Studio Display Speakers",
   "CalDigit TS4 Audio - Front",
+  "Scarlett Solo USB",
   "MacBook Pro Speakers"
 ]
 

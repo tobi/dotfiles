@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+
+require('open3')
+
+extra_fswatch_args, cmd_args =
+  if (rest_index = ARGV.index('--'))
+    [ARGV[0...rest_index], ARGV[rest_index + 1..-1]]
+  else
+    [[], ARGV]
+  end
+
+cmd_args = ['bash', '-c', cmd_args[0]] if cmd_args.size == 1 && cmd_args =~ /[&;|]/
+
+system(*cmd_args)
+
+fswatch_args = [
+  '-e', 'coverage',
+  '-e', '/\.git',
+  '-e', 'node_modules',
+  '--one-per-batch',
+  *extra_fswatch_args,
+  '.'
+]
+
+Open3.popen3('fswatch', *fswatch_args) do |stdin, stdout, _stderr, _wait_thr|
+  stdin.close
+  stdout.each { |_| system(*cmd_args) }
+end
