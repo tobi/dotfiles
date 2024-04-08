@@ -1,0 +1,23 @@
+#!/bin/zsh
+source ~/.zshrc
+
+
+target="$1"
+
+echo "Extracting audio from $target"
+[[ -f /tmp/output_audio.aac ]] && rm /tmp/output_audio.aac
+
+gum spin --show-output --title="ffmpeg... " -- \
+  ffmpeg -i "$target" \
+  -loglevel 0 \
+  -vn -acodec copy /tmp/output_audio.aac 
+
+gum spin --show-output --title="transcribing... " -- \
+  insanely-fast-whisper \
+  --model-name distil-whisper/large-v2 \
+  --device-id mps \
+  --transcript-path /tmp/output.json \
+  --file-name "/tmp/output_audio.aac" 
+
+gum style --bold "Transcribed text:"
+cat /tmp/output.json | jq ".text" -r
