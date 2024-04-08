@@ -47,6 +47,8 @@ elif [ -n "$ZSH_VERSION" ]; then
   export SHELL_ENV="zsh"
 fi
 
+source "$DOTFILES_PATH/src/updates.sh"
+
 source "$DOTFILES_PATH/src/std.sh"
 source "$DOTFILES_PATH/src/prompt.sh"
 source "$DOTFILES_PATH/src/tools.sh"
