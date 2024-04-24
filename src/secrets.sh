@@ -25,13 +25,13 @@ secrets_edit() {
     return 1
   }
 
-  if [[ $crc == $(crc32 $tmpfile) ]]; then 
+  if [[ $crc == $(crc32 $tmpfile) ]]; then
     printf "!!! no changes in file\n"
     rm "$tmpfile"
     return 1
   fi
 
-  if ! head -n 1 "$tmpfile" | grep -q "^export " > /dev/null; then
+  if ! head -n 1 "$tmpfile" | grep -q "^export " >/dev/null; then
     printf "!!! not valid\n"
     rm "$tmpfile"
     return 1
@@ -49,9 +49,9 @@ secrets_edit() {
 }
 
 secrets_generate_hostkey() {
-  if [ ! -f $hostkey ]; then
+  if [ ! -f $hostkey_file ]; then
     printf "generating hostkey...\n"
-    ssh-keygen -t ed25519 -f "$hostkey"
+    ssh-keygen -t ed25519 -f "$hostkey_file"
   else
     #printf "hostkey already exists...\n"
   fi
@@ -59,7 +59,7 @@ secrets_generate_hostkey() {
 
 secrets() {
   secrets_generate_hostkey
-  
+
   # printf "* loading secrets... "
   if ! command -v age >/dev/null 2>&1; then
     #printf "[FAIL]: age not installed\n"
