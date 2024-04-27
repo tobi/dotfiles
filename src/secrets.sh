@@ -10,8 +10,8 @@ secrets_edit() {
   age --decrypt -i $id -o $tmpfile $secrets_file || {
     printf "!!! cannot decrypt\n"
 
-    if ! grep -qF -- "$hostkey".pub "$secrets_hosts"; then
-      printf "    add:\n\n%s\n\n  at https://github.com/tobi/dotfiles/edit/main/src/secrets.hosts\n" $(cat $hostkey.pub)
+    if ! grep -qF -- "$hostkey_file".pub "$secrets_hosts"; then
+      printf "    add:\n\n%s\n\n  at https://github.com/tobi/dotfiles/edit/main/src/secrets.hosts\n" $(cat $hostkey_file.pub)
     fi
 
     return 1

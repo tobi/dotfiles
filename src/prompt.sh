@@ -49,7 +49,9 @@ update_prompt() {
   fi
 
   # Check for CONDA_DEFAULT_ENV and append to rprompt
-  if [[ $CONDA_DEFAULT_ENV != "" ]]; then
+  if [[ $VENV_ENV != "" ]]; then
+    rprompt="$rprompt ${magenta}[venv:${VENV_ENV}]${reset}"
+  elif [[ $CONDA_DEFAULT_ENV != "" ]]; then
     rprompt="$rprompt ${magenta}(conda) $CONDA_DEFAULT_ENV${reset}"
   fi
 

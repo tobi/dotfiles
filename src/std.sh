@@ -104,3 +104,15 @@ append_to_file() {
 reload() {
   source ~/.zshrc
 }
+
+venv() { 
+  if [[ ! -f .venv/bin/activate ]]; then
+    echo " * no python env in $PWD/.venv, create it?"
+    read Y
+    [[ $Y == "y" ]] && python3 -m venv .venv
+  fi
+  
+  source .venv/bin/activate
+  echo " * activated local env"
+  export VENV_ENV="$(basename $PWD)"
+ }
