@@ -3,6 +3,10 @@ local sentinel=/tmp/dotfiles.sentinel
 if [ ! -f $sentinel ] || [ $(find $sentinel -mtime +2) ]; then
   cd $DOTFILES_PATH
   git pull
-  [[ $? -eq 0 ]] && touch $sentinel
+  if [[ $? -eq 0 ]]; then 
+     touch $sentinel
+  else
+     git status
+  fi
   cd $HOME
 fi
