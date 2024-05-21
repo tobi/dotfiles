@@ -1,9 +1,16 @@
 #!/bin/bash
 
+if [ -x "tmux" ]; then
+  echo "install tmux"
+  exit 1
+fi
+
 if [ -n "$1" ]; then
   COMMAND=$1
 else
-  echo "No command provided, using default command: $COMMAND"
+  echo "No command provided"
+  echo
+  echo " $(basename $0) \"[CMD]\""
   exit 1
 fi
 
@@ -13,7 +20,7 @@ echo "Session name: $SESSION_NAME"
 if tmux has-session -t $SESSION_NAME 2>/dev/null; then
   echo "Session exists"
   # Check if the command is running in the session
-  #tmux list-windows -t $SESSION_NAME -F "#{pane_title}" | grep -q "bash"
+  #tmux list-windows -t $SESSION_NAME -F " #{pane_title}" | grep -q "bash"
   if tmux list-windows -t $SESSION_NAME -F "#{pane_current_command}" | grep -q "zsh"; then
     echo "Session in zsh, command (probably) not running"
     # If not running, send the command to the session
