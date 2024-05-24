@@ -1,4 +1,4 @@
-local sentinel=/tmp/dotfiles.sentinel
+sentinel=/tmp/dotfiles.sentinel
 # check if the sentinel file exists, or if its older than 2 days
 if [ ! -f $sentinel ] || [ $(find $sentinel -mtime +2) ]; then
    cd $DOTFILES_PATH
@@ -10,3 +10,5 @@ if [ ! -f $sentinel ] || [ $(find $sentinel -mtime +2) ]; then
    fi
    cd $HOME
 fi
+
+unset sentinel
