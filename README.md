@@ -1,6 +1,6 @@
 # Dotfiles bootstrap
 
-minimum viable shell env
+Minimum viable shell env for linux machines
 
 ## Install
 
