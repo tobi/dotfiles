@@ -1,0 +1,92 @@
+#!/usr/bin/env ruby
+
+
+
+# Variable to store total token count
+total_tokens = 0
+
+
+# enforce command line $0 directory [--include="*.md"]
+require 'optparse'
+
+# Parse command-line arguments
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: #{$0} directory [options]"
+  opts.on("--include=PATTERN", "File pattern to include (default: *.*)") do |pattern|
+    options[:include] = pattern
+  end
+end.parse!
+
+# Enforce command-line arguments
+if ARGV.empty?
+  puts "Error: Directory argument is required."
+  puts "Usage: #{$0} directory [--include=PATTERN]"
+  exit 1
+end
+
+directory = ARGV[0]
+pattern = options[:include] || "*.*"
+
+# Validate directory
+unless File.directory?(directory)
+  puts "Error: '#{directory}' is not a valid directory."
+  exit 1
+end
+
+
+# load .gitignore if it exists
+ignores = []
+if File.exist?('.gitignore')
+  ignores = File.readlines('.gitignore').map(&:strip).reject(&:empty?).reject { |ignore| ignore.start_with?('#') }
+end
+
+# Set the working directory
+Dir.chdir(directory)
+
+
+# glob the dir
+require 'fileutils'
+
+glob_pattern = "**/#{pattern}"
+files = Dir.glob(glob_pattern)
+
+files_count = 0
+bytes_count = 0
+full_content = ""
+
+
+files.each do |file|
+  next if ignores.any? { |ignore| file.end_with?(ignore.strip) }
+  puts "<embedded-file path=\"#{file}\">"
+  content = File.read(file)
+  puts content
+  puts "</embedded-file>"
+
+  files_count += 1
+  bytes_count += content.bytesize
+  full_content += content
+end
+
+
+
+STDERR.puts
+STDERR.puts "processed #{files_count}, skipped #{files.length - files_count}, total bytes: #{bytes_count}"
+STDERR.puts "glob pattern: #{glob_pattern}"
+
+
+# Use bnder inline feature to install tiktoken
+require 'bundler/inline'
+
+gemfile do
+  source 'https://rubygems.org'
+  gem 'tiktoken'
+end
+
+require 'tiktoken'
+
+
+# Initialize the tiktoken encoder
+encoder = Tiktoken.encoding_for_model("gpt-4")
+
+STDERR.puts "total tokens (gpt-4o): #{encoder.encode(full_content).length}"

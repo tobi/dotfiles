@@ -1,6 +1,7 @@
 export EDITOR=nano
 export DOTFILES_PATH="$HOME/dotfiles"
 
+
 # Only allow unique entries in the PATH variable
 # This function updates PATH by removing duplicates
 add_path() {
