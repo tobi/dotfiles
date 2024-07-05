@@ -1,75 +1,120 @@
+#!/usr/bin/env bash
+
 # Define the function to parse git branch and modifications
 git_branch_to_env() {
-  local git_status="$(git status 2>/dev/null)"
-  export GIT_BRANCH=$(echo "$git_status" | head -n 1 | sed -e 's/^On branch \(.*\)/\1/')
-  export GIT_MODS=$(echo "$git_status" | grep -c "\t" || echo 0)
+  local git_status
+  git_status=$(git status --porcelain --branch 2>/dev/null)
+  GIT_BRANCH=$(echo "$git_status" | sed -n 's/^## //;s/\.\.\..*//p')
+  GIT_MODS=$(echo "$git_status" | grep -cv "^??")
+  export GIT_BRANCH GIT_MODS
 }
 
-# function git_branch_to_env() {
-#   local git=$(git status 2>/dev/null)
-#   export GIT_BRANCH=$(echo $git | head -n 1 | sed -e 's/^On branch \(.*\)/\1/')
-#   export GIT_MODS=$(echo $git | grep "\t" | wc -l)
-# }
-
-
-# Define color variables with tput
+# Color function
 color() {
-  echo $(wrap $(tput setaf $1))
+  echo "\[\033[38;5;${1}m\]"
 }
 
-# wrap in zero length for zsh
-wrap() {
-  local shell=$*
-  [[ $SHELL_ENV == "zsh" ]] && shell="%{$*%}"
-  echo $shell
+# Reset color
+reset_color() {
+  echo "\[\033[0m\]"
 }
 
-# Define color variables with tput
-cyan="$(color 6)"
-magenta="$(color 5)"
-blue="$(color 4)"
-green="$(color 2)"
-reset="$(wrap $(tput sgr0))"
+# Define color variables
+cyan=$(color 6)
+magenta=$(color 5)
+blue=$(color 4)
+green=$(color 2)
+red=$(color 1)
+reset=$(reset_color)
 
-chevron=$(printf '%s❯%s❯%s❯%s' \
-  "$(color 70)" \
-  "$(color 220)" \
-  "$(color 209)" \
-  "$reset")
+# Chevron prompt
+chevron=$(printf '%s❯%s❯%s❯%s' "$(color 70)" "$(color 220)" "$(color 209)" "$reset")
 
-# Function to update the prompt
-update_prompt() {
+# Function to update the prompt for Zsh
+update_prompt_zsh() {
+  local exit_code=$?
   local branch=""
   local rprompt=""
 
   # Check for GIT_BRANCH and set the branch and rprompt
-  if [[ $GIT_BRANCH != "" ]]; then
+  if [[ -n $GIT_BRANCH ]]; then
     branch=" ${cyan}($GIT_BRANCH)${reset}"
     rprompt="${green}(git) $GIT_BRANCH: +$GIT_MODS${reset}"
   fi
 
-  # Check for CONDA_DEFAULT_ENV and append to rprompt
-  if [[ $VENV_ENV != "" ]]; then
-    rprompt="$rprompt ${magenta}[venv:${VENV_ENV}]${reset}"
-  elif [[ $CONDA_DEFAULT_ENV != "" ]]; then
+  # Check for virtual environments
+  if [[ -n $VIRTUAL_ENV ]]; then
+    rprompt="$rprompt ${magenta}[venv:$(basename "$VIRTUAL_ENV")]${reset}"
+  elif [[ -n $CONDA_DEFAULT_ENV ]]; then
     rprompt="$rprompt ${magenta}(conda) $CONDA_DEFAULT_ENV${reset}"
   fi
 
-  # PS1 - Using tput instead of raw escape codes for better readability and maintainability
+  # Set host for SSH connections
   local host=""
-  if [[ $SSH_CONNECTION ]]; then
+  if [[ -n $SSH_CONNECTION ]]; then
     host="${green}[$(hostname)] "
   fi
 
-  # Assign to PS1
-  PS1="${host}${blue}%n ${blue}%~${branch} ${chevron}%f "
-  PROMPT=$PS1
-  RPROMPT="$rprompt"
+  # Set exit code indicator
+  local exit_indicator=""
+  if [[ $exit_code -ne 0 ]]; then
+    exit_indicator="${red}✘ ${exit_code}${reset}"
+  fi
 
-  # terminal title
-  echo -ne "\033]0;$(basename "$(dirname "$PWD")")/$(basename "$PWD") $GIT_BRANCH\007"
+  # Set prompt
+  PS1="${exit_indicator}${host}${blue}\u ${blue}\w${branch} ${chevron}${reset} "
+
+  # Set right-side prompt on a new line
+  PS1+="\n\$(echo -e \"$rprompt\")"
+
+  # Set terminal title
+  echo -ne "\033]0;${PWD##*/}${GIT_BRANCH:+ ($GIT_BRANCH)}\007"
 }
 
-# For bash, we use PROMPT_COMMAND instead of precmd_functions
-PROMPT_COMMAND="git_branch_to_env; update_prompt; $PROMPT_COMMAND"
-precmd_functions+=(git_branch_to_env update_prompt)
+# Function to update the prompt for Bash
+update_prompt_bash() {
+  local exit_code=$?
+  local branch=""
+  local rprompt=""
+
+  # Check for GIT_BRANCH and set the branch and rprompt
+  if [[ -n $GIT_BRANCH ]]; then
+    branch=" ${cyan}($GIT_BRANCH)${reset}"
+    rprompt="${green}(git) $GIT_BRANCH: +$GIT_MODS${reset}"
+  fi
+
+  # Check for virtual environments
+  if [[ -n $VIRTUAL_ENV ]]; then
+    rprompt="$rprompt ${magenta}[venv:$(basename "$VIRTUAL_ENV")]${reset}"
+  elif [[ -n $CONDA_DEFAULT_ENV ]]; then
+    rprompt="$rprompt ${magenta}(conda) $CONDA_DEFAULT_ENV${reset}"
+  fi
+
+  # Set host for SSH connections
+  local host=""
+  if [[ -n $SSH_CONNECTION ]]; then
+    host="${green}[$(hostname)] "
+  fi
+
+  # Set exit code indicator
+  local exit_indicator=""
+  if [[ $exit_code -ne 0 ]]; then
+    exit_indicator="${red}✘ ${exit_code}${reset}"
+  fi
+
+  if [[ -n $rprompt ]]; then
+    rprompt="-> $rprompt\n"
+  fi
+
+  # Set prompt
+  PS1="[bash] ${exit_indicator}${host}${blue}\u ${blue}\w${branch} ${chevron}${reset} "
+
+  # Set terminal title (works in most terminal emulators)
+  PS1+="\[\033]0;\w\007\]"
+}
+
+if [[ -n $BASH ]]; then
+  PROMPT_COMMAND="git_branch_to_env; update_prompt_bash"
+else
+  PROMPT_COMMAND="git_branch_to_env; update_prompt_zsh"
+fi
