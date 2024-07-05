@@ -1,6 +1,13 @@
 export EDITOR=nano
 export DOTFILES_PATH="$HOME/dotfiles"
 
+alias ls='ls --color'
+alias ll='ls -lh'
+alias la='ls -ah'
+alias lla='ls -lah'
+alias ..='cd ..'
+
+alias e="$EDITOR"
 
 # Only allow unique entries in the PATH variable
 # This function updates PATH by removing duplicates
@@ -9,14 +16,6 @@ add_path() {
     export PATH="$1:$PATH"
   fi
 }
-
-alias ls='ls --color'
-alias ll='ls -lh'
-alias la='ls -ah'
-alias lla='ls -lah'
-alias ..='cd ..'
-
-alias e="$EDITOR"
 
 # Adding paths without creating duplicates
 add_path "${HOME}/bin"
@@ -54,9 +53,9 @@ source "$DOTFILES_PATH/src/std.sh"
 source "$DOTFILES_PATH/src/prompt.sh"
 source "$DOTFILES_PATH/src/tools.sh"
 source "$DOTFILES_PATH/src/secrets.sh"
-source "$DOTFILES_PATH/src/vendor.$VENDOR.sh"
 
-update_prompt
+[[ -f "$DOTFILES_PATH/src/vendor.$VENDOR.sh" ]] && source "$DOTFILES_PATH/src/vendor.$VENDOR.sh"
+
 secrets
 
 # See if we need some local overrides

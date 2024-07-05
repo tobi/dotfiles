@@ -52,8 +52,6 @@ secrets_generate_hostkey() {
   if [ ! -f $hostkey_file ]; then
     printf "generating hostkey...\n"
     ssh-keygen -t ed25519 -f "$hostkey_file"
-  else
-    #printf "hostkey already exists...\n"
   fi
 }
 

@@ -46,7 +46,7 @@ else
 fi
 
 if command_present "bat"; then
-  local cmd="$(which bat)"
+  cmd="$(which bat)"
   [[ ! $! -eq 0 ]] && cmd="$(which batcat)"
 
   alias bat="$cmd"
@@ -54,6 +54,7 @@ if command_present "bat"; then
 
   # improve fzf preview
   export FZF_CTRL_T_OPTS="$FZF_CTRL_T_OPTS --preview '$cmd -n --color=always {}'"
+  unset cmd
 else
   add_package "bat"
 fi
