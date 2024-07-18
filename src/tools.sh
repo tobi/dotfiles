@@ -31,6 +31,7 @@ if command_present "exa"; then
   alias ll="exa -l --group-directories-first"
   alias la="exa -a --group-directories-first"
   alias lla="exa -la --group-directories-first"
+  alias tree="exa --tree"
 else
   add_package "exa"
 fi
