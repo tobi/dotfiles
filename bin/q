@@ -1,0 +1,66 @@
+#!/usr/bin/env ruby
+
+require 'net/http'
+require 'json'
+require 'uri'
+
+API_KEY = ENV['ANTHROPIC_API_KEY']
+API_URL = 'https://api.anthropic.com/v1/messages'
+
+
+def generate_command(prompt)
+  shell = `basename $SHELL`.strip
+  uname = `uname`.strip
+
+  full_prompt = "Return commands suitable for copy/pasting into #{shell} on #{uname}. Do NOT include commentary NOR Markdown triple-backtick code blocks as your whole response will be copied into my terminal automatically.\n\nThe script should do this: #{prompt}"
+
+  # full_prompt = "#{system_prompt}\n\n#{prompt}"
+
+  uri = URI.parse(API_URL)
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = true
+
+  request = Net::HTTP::Post.new(uri.request_uri)
+  request['Content-Type'] = 'application/json'
+  request['X-API-Key'] = API_KEY
+  request['anthropic-version'] = '2023-06-01'
+
+  request.body = {
+    model: 'claude-3-sonnet-20240229',
+    max_tokens: 1024,
+    messages: [
+      { role: 'user', content: full_prompt }
+    ]
+  }.to_json
+
+  response = http.request(request)
+
+  if response.code == '200'
+    result = JSON.parse(response.body)
+    result['content'][0]['text']
+  else
+    puts "Error: #{response.code} - #{response.message}"
+    nil
+  end
+end
+
+def copy_to_clipboard(text)
+  IO.popen('pbcopy', 'w') { |f| f << text }
+end
+
+if ARGV.empty?
+  puts "Usage: q <prompt>"
+  exit 1
+end
+
+prompt = ARGV.join(' ')
+command = generate_command(prompt)
+
+if command
+  puts "Generated command:"
+  puts command
+  copy_to_clipboard(command)
+  puts "\nCommand copied to clipboard!"
+else
+  puts "Failed to generate command."
+end
