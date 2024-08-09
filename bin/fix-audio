@@ -22,7 +22,6 @@ output_priorities = [
   "CalDigit TS4 Audio - Rear",
   "Studio Display Speakers",
   "CalDigit TS4 Audio - Front",
-  "Scarlett Solo USB",
   "MacBook Pro Speakers"
 ]
 
@@ -31,6 +30,7 @@ unless system("SwitchAudioSource -c")
   system("brew install switchaudio-osx")
 end
 
+# brew install switchaudio-osx
 devices = `SwitchAudioSource -a -f json`.split("\n").map { |l| JSON.parse(l) }
 
 def highest_priority_device(devices, prios)

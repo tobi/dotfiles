@@ -8,7 +8,6 @@ API_KEY = ENV['ANTHROPIC_API_KEY']
 API_URL = 'https://api.anthropic.com/v1/messages'
 
 
-
 def generate_command(prompt)
   shell = `basename $SHELL`.strip
   uname = `uname`.strip

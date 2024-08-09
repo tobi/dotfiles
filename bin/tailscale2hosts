@@ -1,5 +1,5 @@
 #!/usr/bin/env ruby
-
+require 'date'
 require 'json'
 require 'fileutils'
 
@@ -9,29 +9,7 @@ else
   "tailscale"
 end
 
-
-
-tailscale = JSON.parse( `#{bin} status --json ` )
-
-# dirname = File.join( ENV['HOME'], "/.ssh/include" )
-# FileUtils.mkdir_p( dirname )
-
-# File.open("#{dirname}/tailscale", 'w+') do |f|
-#   puts "Writing #{dirname}/tailscale"
-
-#   tailscale['Peer'].each do |node, params|
-
-#     puts "  #{params['HostName']}"
-#     host, ip = params['HostName'], params['TailscaleIPs'].first
-
-#     f.puts "# #{host}.lutke.com.beta.tailscale.net"
-#     f.puts "Host #{host} "
-#     f.puts "  HostName #{ip}"
-#     f.puts "  User #{ENV["USER"]}"
-#     f.puts
-
-#   end
-# end
+tailscale = JSON.parse(`#{bin} status --json `)
 
 hosts = File.read("/etc/hosts")
 
@@ -41,11 +19,10 @@ end
 
 tailscale.delete("localhost")
 
-require 'date'
-require 'fileutils'
-FileUtils.cp "/etc/hosts", "/tmp/hosts.old.#{DateTime.now.strftime("%Y-%m-%d-%H%M%S")}"
 
-File.open("/etc/hosts", "w+") do |fp|
+FileUtils.cp "/etc/hosts", "/tmp/hosts.old.#{DateTime.now.strftime('%Y-%m-%d-%H%M%S')}"
+
+File.open('/etc/hosts', 'w+') do |fp|
   hosts.each_line do |line|
     line =~ /\s(\S+)$/
 

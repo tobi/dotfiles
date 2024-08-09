@@ -28,9 +28,9 @@ fi
 cd $HOME/dotfiles
 
 echo "installing dotfiles to zsh/bash"
-echo "# Dotfiles" > ~/.zshrc
-echo "source \$HOME/dotfiles/shell" >> ~/.zshrc
-echo "source \$HOME/.zshrc.local" >> ~/.zshrc
+echo "# Dotfiles" >~/.zshrc
+echo "source \$HOME/dotfiles/shell" >>~/.zshrc
+echo "source \$HOME/.zshrc.local" >>~/.zshrc
 touch ~/.zshrc.local
 
 chmod -w ~/.zshrc
@@ -38,4 +38,3 @@ ln -nfs ~/.zshrc ~/.bashrc
 
 echo
 echo "done"
-
