@@ -3,6 +3,7 @@ cd $HOME/dotfiles/config
 
 # Loop through all files in the directory
 for file in *; do
+  realpath=$(realpath "$file")
   basename=$(basename "$file")
   # Skip if it's not a file
   [ -f "$file" ] || continue
@@ -22,7 +23,7 @@ for file in *; do
   echo "linking $destination to ./$file"
 
   # link the file
-  ln -s "$HOME/$file" "$destination"
+  ln -s "$realpath" "$destination"
 
   echo "linked $destination to $file"
 done

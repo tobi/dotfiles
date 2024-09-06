@@ -9,6 +9,7 @@ if wezterm.target_triple == 'x86_64-pc-windows-msvc' then
   default_prog = {'wsl.exe', '~', '-d', 'Ubuntu-20.04'}
 end
 
+
 -- config.set_environment_variables = {
 --   PATH = '/opt/homebrew/bin:' .. os.getenv('PATH')
 -- }
@@ -109,6 +110,21 @@ wezterm.on('update-status', function(window, _)
 
   window:set_right_status(wezterm.format(elements))
 end)
+
+config.hyperlink_rules = wezterm.default_hyperlink_rules()
+
+-- deal with python stacktraces
+table.insert(config.hyperlink_rules, {
+  regex = 'File \"/Users/tobi/([^"]+)\", line (\\d+)',
+  format = 'cursor://file$1:$2',
+  highlight = 0,
+})
+
+-- make all paths clickable to open finder
+table.insert(config.hyperlink_rules, {
+  regex = [[(/Users/tobi|~)/[^ ]+]],
+  format = 'file://$0',
+})
 
 -- and finally, return the configuration to wezterm
 return config
