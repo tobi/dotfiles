@@ -26,14 +26,15 @@ else
   add_brew_package "fd"
 fi
 
-if command_present "exa"; then
-  alias ls="exa --group-directories-first"
-  alias ll="exa -l --group-directories-first"
-  alias la="exa -a --group-directories-first"
-  alias lla="exa -la --group-directories-first"
-  alias tree="exa --tree"
+if command_present "eza"; then
+  alias ls="eza --group-directories-first"
+  alias ll="eza -l --group-directories-first"
+  alias la="eza -a --group-directories-first"
+  alias lla="eza -la --group-directories-first"
+  alias tree="eza --tree"
+  alias exa="eza"
 else
-  add_package "exa"
+  add_package "eza"
 fi
 
 if command_present "fzf"; then
