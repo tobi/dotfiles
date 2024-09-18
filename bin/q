@@ -48,6 +48,8 @@ def llm(prompt)
     result['content'][0]['text']
   else
     STDERR.puts "Error: #{response.code} - #{response.message}"
+    STDERR.puts
+    STDERR.puts response.body
     nil
   end
 end
