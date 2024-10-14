@@ -19,6 +19,7 @@ config.font_size = 12
 config.color_scheme = 'Catppuccin Macchiato'
 config.window_background_opacity = 1
 config.macos_window_background_blur = 30
+config.exit_behavior = 'CloseOnCleanExit'
 
 
 -- Removes the title bar, leaving only the tab bar.
@@ -113,18 +114,31 @@ end)
 
 config.hyperlink_rules = wezterm.default_hyperlink_rules()
 
--- deal with python stacktraces
+-- make python stack traces clickable
+-- table.insert(config.hyperlink_rules, {
+--   regex = 'File \"/Users/tobi/([^"]+)\", line (\\d+)',
+--   format = 'cursor://file$1:$2',
+--   highlight = 0,
+-- })
+
 table.insert(config.hyperlink_rules, {
-  regex = 'File \"/Users/tobi/([^"]+)\", line (\\d+)',
-  format = 'cursor://file$1:$2',
+  regex = [[\b(\/[\w\.\_\-\/]+\.\w{1,5}\:\d+)]],
+  format = 'cursor://file$0',
   highlight = 0,
 })
 
--- make all paths clickable to open finder
 table.insert(config.hyperlink_rules, {
-  regex = [[(/Users/tobi|~)/[^ ]+]],
-  format = 'file://$0',
+  regex = [[\b(\w[\w\.\_\-]+\.\w{1,5}\:\d+)]],
+  format = 'cursor://file/./$0',
+  highlight = 0,
 })
+
+-- make prompt paths clickable to open finder (sadly, doesn't work with ~)
+-- table.insert(config.hyperlink_rules, {
+--   regex = [[^tobi ([\S]+) ❯]],
+--   format = 'file://$1',
+--   highlight = 1,
+-- })
 
 -- and finally, return the configuration to wezterm
 return config

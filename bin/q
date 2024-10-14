@@ -1,27 +1,27 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
 require 'net/http'
 require 'json'
 require 'uri'
 
-API_KEY = ENV['ANTHROPIC_API_KEY']
-API_URL = 'https://api.anthropic.com/v1/messages'
-
+API_KEY = ENV['OPENAI_API_KEY']
+API_URL = 'https://api.openai.com/v1/chat/completions'
 
 def generate_command(prompt)
   shell = `basename $SHELL`.strip
   uname = `uname`.strip
 
-  prompt = <<~EOS
-  Return cli command(s) suitable for copy/pasting into '#{shell}' on '#{uname}'.
+  prompt = <<~PROMPT
+    Return cli command(s) suitable for copy/pasting into '#{shell}' on '#{uname}'.
 
-  Do NOT include commentary NOR Markdown triple-backtick code blocks.
-  Your entire response will be copied into terminal automatically and should be executable as is.
+    Do NOT include commentary NOR Markdown triple-backtick code blocks.
+    Your entire response will be copied into terminal automatically and should be executable as is.
 
-  The command should do this: #{prompt}
-  EOS
+    The command should do this: #{prompt}
+  PROMPT
 
-  response = llm(prompt)
+  llm(prompt)
 end
 
 def llm(prompt)
@@ -31,12 +31,10 @@ def llm(prompt)
 
   request = Net::HTTP::Post.new(uri.request_uri)
   request['Content-Type'] = 'application/json'
-  request['X-API-Key'] = API_KEY
-  request['anthropic-version'] = '2023-06-01'
+  request['Authorization'] = "Bearer #{API_KEY}"
 
   request.body = {
-    model: 'claude-3-sonnet-20240229',
-    max_tokens: 1024,
+    model: 'gpt-3.5-turbo',
     messages: [
       { role: 'user', content: prompt }
     ]
@@ -45,11 +43,11 @@ def llm(prompt)
   response = http.request(request)
   if response.code == '200'
     result = JSON.parse(response.body)
-    result['content'][0]['text']
+    result['choices'][0]['message']['content']
   else
-    STDERR.puts "Error: #{response.code} - #{response.message}"
-    STDERR.puts
-    STDERR.puts response.body
+    $stderr.warn "Error: #{response.code} - #{response.message}"
+    $stderr.warn
+    $stderr.warn response.body
     nil
   end
 end
@@ -57,12 +55,12 @@ end
 def copy_to_clipboard(text)
   # only works on osx
   IO.popen('pbcopy', 'w') { |f| f << text }
-rescue => e
+rescue
   false
 end
 
 if ARGV.empty?
-  puts "Usage: q <prompt>"
+  puts 'Usage: q <prompt>'
   exit 1
 end
 
@@ -73,6 +71,6 @@ if command
   puts command
   puts "\n(copied to clipboard)" if copy_to_clipboard(command)
 else
-  STDERR.puts "Failed to generate command."
+  $stderr.warn 'Failed to generate command.'
   exit 1
 end
