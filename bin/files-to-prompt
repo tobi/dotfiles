@@ -78,6 +78,8 @@ STDERR.puts "glob pattern: #{glob_pattern}"
 # Use bnder inline feature to install tiktoken
 require 'bundler/inline'
 
+begin
+
 gemfile do
   source 'https://rubygems.org'
   gem 'tiktoken'
@@ -90,3 +92,9 @@ require 'tiktoken'
 encoder = Tiktoken.encoding_for_model("gpt-4")
 
 STDERR.puts "total tokens (gpt-4o): #{encoder.encode(full_content).length}"
+
+rescue => e
+
+STDERR.puts "error: #{e.message}"
+
+end

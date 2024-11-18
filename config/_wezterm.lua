@@ -19,7 +19,7 @@ config.font_size = 12
 config.color_scheme = 'Catppuccin Macchiato'
 config.window_background_opacity = 1
 config.macos_window_background_blur = 30
-config.exit_behavior = 'CloseOnCleanExit'
+config.exit_behavior = 'Close'
 
 
 -- Removes the title bar, leaving only the tab bar.
