@@ -10,20 +10,23 @@ for file in *; do
   [ "$basename" == "link.sh" ] && continue
 
   ext=$(echo "$file" | awk -F. '{print $NF}')
-  basename_without_ext=$(echo "$basename" | sed 's/\.'$ext'//g')
+  #basename_without_ext=$(echo "$basename" | sed 's/\.'$ext'//g')
 
-  # Replace . with / and _ with .
-  destination=$HOME/$(echo "$basename_without_ext" | sed 's/\./\//g' | sed 's/_/./g').$ext
+  # Replace:
+  #   .  -> /
+  #   _  -> .
 
-  if [ -f "$destination" ]; then
-    echo "File $destination already exists"
+  destination=$HOME/$(echo "$basename" | sed 's/\./\//g' | sed 's/_/./g')
+
+  if [ "$1" != "-f" ] && [ -f "$destination" ]; then
+    echo "File $destination already exists, skipping... (or use -f)"
     continue
   fi
 
   echo "linking $destination to ./$file"
 
   # link the file
-  ln -s "$realpath" "$destination"
+  ln -nfs "$realpath" "$destination"
 
-  echo "linked $destination to $file"
+  echo " [OK]"
 done
