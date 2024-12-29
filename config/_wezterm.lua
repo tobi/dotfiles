@@ -20,7 +20,7 @@ config.color_scheme = 'Catppuccin Macchiato'
 config.window_background_opacity = 1
 config.macos_window_background_blur = 30
 config.exit_behavior = 'Close'
-
+config.window_close_confirmation = 'NeverPrompt'
 
 -- Removes the title bar, leaving only the tab bar.
 config.window_decorations = 'INTEGRATED_BUTTONS'

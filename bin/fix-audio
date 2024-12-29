@@ -10,26 +10,24 @@ require 'json'
 
 # first == highest
 input_priorities = [
-  "CM-15",
-  "Shure MV7+",
-  "Shure MV7",
-  "Scarlett Solo USB",
-  "MacBook Pro Microphone",
+  'CM-15',
+  'Shure MV7+',
+  'Shure MV7',
+  'Scarlett Solo USB',
+  'MacBook Pro Microphone',
 ]
 
 # first == highest
 output_priorities = [
-  "Audioengine 2+",
-  "CalDigit TS4 Audio - Rear",
-  "Studio Display Speakers",
-  "CalDigit TS4 Audio - Front",
-  "MacBook Pro Speakers"
+  'Audioengine 2+',
+  'CalDigit TS4 Audio - Rear',
+  'Scarlett Solo USB',
+  'Studio Display Speakers',
+  'CalDigit TS4 Audio - Front',
+  'MacBook Pro Speakers'
 ]
 
-
-unless system("SwitchAudioSource -c")
-  system("brew install switchaudio-osx")
-end
+system('brew install switchaudio-osx') unless system('SwitchAudioSource -c')
 
 # brew install switchaudio-osx
 devices = `SwitchAudioSource -a -f json`.split("\n").map { |l| JSON.parse(l) }
@@ -39,7 +37,7 @@ def highest_priority_device(devices, prios)
     prios.index(device['name']) or (prios.size + 1)
   end
 
-  return ordered.first
+  ordered.first
 end
 
 inputs, outputs = devices.partition { |d| d['type'] == 'input' }
