@@ -9,11 +9,6 @@ git_branch_to_env() {
   export GIT_BRANCH GIT_MODS
 }
 
-# Define color variables with tput
-color() {
-  echo $(wrap $(tput setaf $1))
-}
-
 wrap() {
   if [[ $SHELL_ENV == "zsh" ]]; then
     echo "%{$*%}"
@@ -22,17 +17,18 @@ wrap() {
   fi
 }
 
-# Define color variables with tput
-cyan="$(color 6)"
-magenta="$(color 5)"
-blue="$(color 4)"
-green="$(color 2)"
-reset="$(wrap $(tput sgr0))"
+# Define color variables
+cyan="$(wrap '\033[36m')"
+magenta="$(wrap '\033[35m')"
+blue="$(wrap '\033[34m')"
+green="$(wrap '\033[32m')"
+red="$(wrap '\033[31m')"
+reset="$(wrap '\033[0m')"
 
 chevron=$(printf '%s❯%s❯%s❯%s' \
-  "$(color 70)" \
-  "$(color 220)" \
-  "$(color 209)" \
+  "$(wrap '\033[32m')" \
+  "$(wrap '\033[33m')" \
+  "$(wrap '\033[31m')" \
   "$reset")
 
 # Function to update the prompt for Zsh
@@ -53,7 +49,7 @@ update_prompt_zsh() {
     rprompt="$rprompt ${magenta}(conda) $CONDA_DEFAULT_ENV${reset}"
   fi
 
-  # PS1 - Using tput instead of raw escape codes for better readability and maintainability
+  # Set up PS1
   local host=""
   if [[ $SSH_CONNECTION ]]; then
     host="${green}[$(hostname)] "
