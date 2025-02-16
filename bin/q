@@ -45,9 +45,9 @@ def llm(prompt)
     result = JSON.parse(response.body)
     result['choices'][0]['message']['content']
   else
-    $stderr.warn "Error: #{response.code} - #{response.message}"
-    $stderr.warn
-    $stderr.warn response.body
+    $stderr.puts "Error: #{response.code} - #{response.message}"
+    $stderr.puts
+    $stderr.puts response.body
     nil
   end
 end
@@ -71,6 +71,6 @@ if command
   puts command
   puts "\n(copied to clipboard)" if copy_to_clipboard(command)
 else
-  $stderr.warn 'Failed to generate command.'
+  $stderr.puts 'Failed to generate command.'
   exit 1
 end

@@ -5,7 +5,7 @@ hostkey_file="${HOME}/.ssh/hostkey"
 secrets_hosts="${DOTFILES_PATH}/src/secrets.hosts"
 
 secrets_edit() {
-  tmpfile=$(mktemp -tsecret)
+  tmpfile=$(mktemp --suffix=.txt)
 
   age --decrypt -i $id -o $tmpfile $secrets_file || {
     printf "!!! cannot decrypt\n"
