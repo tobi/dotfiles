@@ -54,8 +54,6 @@ source "$DOTFILES_PATH/src/secrets.sh"
 
 [[ -f "$DOTFILES_PATH/src/vendor.$VENDOR.sh" ]] && source "$DOTFILES_PATH/src/vendor.$VENDOR.sh"
 
-secrets
-
 # See if we need some local overrides
 if [[ -f "$HOME/.${SHELL_ENV}rc.local" ]]; then
   source "$HOME/.${SHELL_ENV}rc.local"
