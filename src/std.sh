@@ -41,7 +41,6 @@ add_package_report() {
   fi
 }
 
-
 # Function to check for commands, adjusted for Bash
 check_cmd_or_install() {
   local cmd="$1"
@@ -95,7 +94,7 @@ append_to_file() {
   fi
 
   if ! grep -qF -- "$text" "$file"; then
-    echo -e "$text" >> "$file"
+    echo -e "$text" >>"$file"
     return 0
   fi
   return 1
@@ -105,14 +104,14 @@ reload() {
   source ~/.zshrc
 }
 
-venv() { 
+venv() {
   if [[ ! -f .venv/bin/activate ]]; then
     echo " * no python env in $PWD/.venv, create it?"
     read Y
     [[ $Y == "y" ]] && python3 -m venv .venv
   fi
-  
+
   source .venv/bin/activate
   echo " * activated local env"
   export VENV_ENV="$(basename $PWD)"
- }
+}
