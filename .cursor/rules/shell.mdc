@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# shell scripts rules
+
+- Exacutable shell script should always shebang to #!/bin/bash
+- Suggest improvements for the standard library, or suggest new high value functions
+- Every file must work in both zsh and bash, use cross compatible syntaxes. If that's impossible (like with prompts) use shell detection. 
+- This dotfiles is meant to be minimal, we don't need to cover absolutly every eventuality and favor readability and simplicity over abstractions
+

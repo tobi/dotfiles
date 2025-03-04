@@ -1,0 +1,110 @@
+---
+description: Ruby
+globs: *.rb
+alwaysApply: true
+---
+
+# Ruby style
+
+- We generally use @https://raw.githubusercontent.com/rubocop/ruby-style-guide/refs/heads/master/README.adoc as style guide
+- We write simple shell scripts here, usually single file. We avoid multi file scripts. 
+- Avoid unecissary abstraction
+- Always intend with 2 speces
+- We just use the ruby standard library and avoid gems, If a gem is absolutly needed, we use inline bundler style:
+
+```ruby
+require 'bundler/inline'
+
+gemfile do
+  source 'https://rubygems.org'
+  gem 'tiktoken'
+end
+
+require 'tiktoken'
+```
+
+## Modern Ruby 3.4 Programming Idioms
+
+- Use pattern matching with in and => operators for destructuring complex data structures
+```ruby
+case response
+in { status: 200, body: { data: data } }
+  process(data)
+in { status: 400..499, error: error_message }
+  handle_client_error(error_message)
+end
+```
+
+Apply the concise it shorthand in blocks for clarity and brevity
+```ruby
+numbers.select { it > 10 }.map { it * 2 }
+```
+
+Leverage the new Data class for immutable value objects
+```ruby
+class Point < Data.define(:x, :y)
+end
+point = Point.new(x: 1, y: 2)
+```
+
+Use RBS for improved type checking
+```ruby
+#: (Integer, Integer) -> Integer
+def add(a, b)
+  a + b
+end
+
+Implement endless methods for single-expression methods
+```ruby
+def square(x) = x * x
+```
+
+Apply the rightward assignment operator (=>) for clearer assignment flows
+```ruby
+calculate_complex_value => result
+```
+
+Use the enhanced pipeline operator (|>) for readable function composition
+```ruby
+data 
+  |> filter 
+  |> transform 
+  |> format
+```
+
+Leverage improved pattern matching with as patterns and pin operators
+```ruby
+case user_data
+in { name: name, role: ^admin_role } as admin
+  grant_admin_privileges(admin)
+end
+```
+
+Implement the new rescue modifier syntax for expression-level error handling
+```ruby
+parsed_data = JSON.parse(input) rescue {}
+```
+
+Utilize new enumerable methods for more expressive collection operations
+```ruby
+users.filter_map { |user| user.email if user.active? }
+words.tally  # Returns a hash of word frequencies
+values.compact_map { |v| process(v) }  # Maps and removes nil values
+```
+
+Take advantage of YJIT compiler optimizations by favoring Ruby native constructs
+```ruby
+# Prefer this (optimized by YJIT)
+sum = values.sum
+
+# Instead of this (C extension, potentially less optimized)
+require 'fast_math'
+sum = FastMath.sum(values)
+```
+
+- type with inline rbs
+
+```ruby   
+  #: (Hash[String, untyped] config) -> void
+  def validate_config!(config)
+```

@@ -1,44 +1,88 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
+
 require 'date'
 require 'json'
 require 'fileutils'
 
-bin = if File.exist?("/Applications/Tailscale.app/Contents/MacOS/Tailscale")
-  "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
-else
-  "tailscale"
+# Find the Tailscale binary path
+#: () -> String
+def find_tailscale_binary #: -> String
+  if File.exist?("/Applications/Tailscale.app/Contents/MacOS/Tailscale")
+    "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+  else
+    "tailscale"
+  end
 end
 
-tailscale = JSON.parse(`#{bin} status --json `)
+# Get Tailscale status and extract host-to-IP mappings
+#: (String binary) -> Hash[String, String]
+def extract_tailscale_hosts(binary) #: -> Hash[String, String]
+  begin
+    status = JSON.parse(`#{binary} status --json`)
 
-hosts = File.read("/etc/hosts")
-
-tailscale = tailscale['Peer'].each_with_object({}) do |(node, params), hash|
-  hash[params['HostName']] = params['TailscaleIPs'].first
+    status['Peer'].each_with_object({}) do |(_, params), hosts|
+      case params
+      in { 'HostName' => hostname, 'TailscaleIPs' => [ip, *_] } if hostname && !ip.nil?
+        hosts[hostname] = ip
+      else
+        # Skip entries without hostname or IPs
+      end
+    end.tap { |hosts| hosts.delete('localhost') }
+  rescue => e
+    warn "Error fetching Tailscale status: #{e.message}"
+    exit 1
+  end
 end
 
-tailscale.delete("localhost")
+# Create a backup of the hosts file
+#: () -> String
+def backup_hosts_file #: -> String
+  timestamp = DateTime.now.strftime('%Y-%m-%d-%H%M%S')
+  backup_path = "/tmp/hosts.old.#{timestamp}"
 
+  FileUtils.cp('/etc/hosts', backup_path)
+  backup_path
+end
 
-FileUtils.cp "/etc/hosts", "/tmp/hosts.old.#{DateTime.now.strftime('%Y-%m-%d-%H%M%S')}"
+# Update the hosts file with Tailscale information
+#: (Hash[String, String] tailscale_hosts) -> void
+def update_hosts_file(tailscale_hosts) #: -> void
+  hosts_content = File.read('/etc/hosts')
 
-File.open('/etc/hosts', 'w+') do |fp|
-  hosts.each_line do |line|
-    line =~ /\s(\S+)$/
+  File.open('/etc/hosts', 'w+') do |file|
+    # Keep existing lines that don't reference Tailscale hosts
+    hosts_content.each_line do |line|
+      if line =~ /\s(\S+)$/ && $1 && tailscale_hosts[$1]
+        # Skip lines for hosts we'll add from Tailscale
+      else
+        file.puts(line)
+      end
+    end
 
-    # skip lines that we have in our tailscale index
-    unless tailscale[$1]
-      fp.puts(line)
+    # Add Tailscale hosts
+    file.puts
+    file.puts("# added by tailscale script") unless hosts_content.include?("# added by tailscale script")
+    file.puts
+
+    tailscale_hosts.each do |host, ip|
+      file.puts("#{ip}\t#{host}")
     end
   end
+end
+
+# Main execution
+begin
+  binary = find_tailscale_binary
+  tailscale_hosts = extract_tailscale_hosts(binary)
+  backup_path = backup_hosts_file
 
 
-  fp.puts
-  fp.puts("# added by tailscale script") if
-
-  hosts.index("# added by tailscale script")
-  fp.puts
-  tailscale.each do |host, ip|
-    fp.puts("#{ip}\t#{host}")
-  end
+  puts "Successfully updated /etc/hosts with #{tailscale_hosts.size} Tailscale entries"
+  update_hosts_file(tailscale_hosts)
+  puts "Successfully updated /etc/hosts with #{tailscale_hosts.size} Tailscale entries"
+  puts "Backup created at #{backup_path}"
+rescue => e
+  warn "Error: #{e.message}"
+  exit 1
 end
