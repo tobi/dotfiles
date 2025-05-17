@@ -1,0 +1,284 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'bundler/inline'
+require 'find'
+require 'optparse'
+require 'stringio'
+
+
+# ANSI color codes
+YELLOW = "\e[33m"
+GREEN = "\e[32m"
+RESET = "\e[0m"
+BLUE = "\e[34m"
+BOLD = "\e[1m"
+
+# Count tokens and output to stderr
+def count_tokens(text, model = 'gpt-4o')
+  gemfile do
+    source 'https://rubygems.org'
+    gem 'tiktoken_ruby'
+  end
+
+  enc = Tiktoken.encoding_for_model(model)
+  enc.encode(text).length
+end
+
+# Represents a directory tree and its associated file contents
+class FilesToPrompt
+  attr_reader :tree, :files_content
+  attr_accessor :all_files, :included_files
+
+  def initialize(root_dir, patterns: nil, exclude_patterns: nil)
+    @root_dir = root_dir
+    @include_patterns = patterns&.split(',')&.map(&:strip)
+    @exclude_patterns = exclude_patterns&.split(',')&.map(&:strip)
+    @files_content = Hash.new { |hash, key| hash[key] = File.read(key) }
+    @all_files = []
+    @included_files = []
+    @tree = {}
+    process_files
+  end
+
+  # Compiles .gitignore patterns into a regex for filtering
+  def compile_gitignore_regex
+    gitignore_patterns = []
+
+    # Start with default patterns
+    gitignore_patterns << '.git/'
+    gitignore_patterns << '.venv/'
+    gitignore_patterns << '__pycache__'
+    gitignore_patterns << '/\\..*' # Hidden files and directories
+
+    # Add patterns from .gitignore if it exists
+    if File.exist?('.gitignore')
+      gitignore_patterns.concat(
+        File.readlines('.gitignore', chomp: true)
+            .reject { |line| line.strip.empty? || line.start_with?('#') }
+            .map { |line| "^#{Regexp.escape(line.strip).gsub('\*', '.*').gsub('\?', '.')}" }
+      )
+    end
+
+    @ignore_regex = Regexp.union(gitignore_patterns)
+  end
+
+  # Checks if a file appears to be text
+  def text_file?(path)
+    return false unless File.file?(path) && File.readable?(path)
+
+    begin
+      File.open(path, 'rb') do |file|
+        # Read first 1024 bytes to check for binary content
+        sample = file.read(1024) || ''
+        return false if sample.empty? # Empty files are considered non-text for simplicity
+
+        # Return false if sample contains null bytes
+        return false if sample.include?("\x00")
+
+        # Check for common binary file signatures
+        return false if sample.start_with?("\x7FELF", 'BM', "\x89PNG", "\xFF\xD8\xFF", 'GIF8', "\x1F\x8B")
+
+        # Count non-ASCII characters
+        non_ascii = sample.bytes.count { |b| b > 127 }
+
+        # If the sample is too short, be conservative
+        return false if sample.length < 8 && non_ascii.positive?
+
+        # Calculate the ratio of non-ASCII characters
+        ratio = sample.length.positive? ? (non_ascii.to_f / sample.length) : 1.0
+
+        # Lower threshold for binary detection
+        return ratio < 0.30
+      end
+    rescue StandardError
+      # Log the error if needed
+      # puts "Error checking if #{path} is text: #{e.message}"
+      false
+    end
+  end
+
+  # Matches a path against glob patterns, supporting both files and directories
+  def matches_glob_patterns?(path, patterns)
+    return true if patterns.nil? || patterns.empty?
+
+    patterns.any? do |pattern|
+      # Check if it's a directory pattern (ends with /)
+      if pattern.end_with?('/')
+        # Remove trailing slash and check if the path starts with this directory
+        dir_pattern = pattern.chomp('/')
+        path.start_with?(dir_pattern + '/')
+      else
+        # For file patterns, use standard glob matching
+        File.fnmatch?(pattern, path, File::FNM_DOTMATCH | File::FNM_PATHNAME)
+      end
+    end
+  end
+
+  # Checks if a file matches the specified patterns
+  def matches_patterns?(path)
+    # First check exclude patterns - if matches, return false
+    return false if matches_glob_patterns?(path, @exclude_patterns)
+
+    # Then check include patterns
+    matches_glob_patterns?(path, @include_patterns)
+  end
+
+  # Formats and prints the directory tree and file contents
+  def display(output = StringIO.new)
+    output.puts 'Directory Structure:'
+    output.puts '.'
+    print_tree_to_array(@tree, output)
+
+    output.puts "\nFile Contents:"
+
+    included_files.each do |path|
+      output.puts "<embedded-file path=\"#{path}\">"
+      output.puts @files_content[path]
+      output.puts '</embedded-file>'
+    end
+    output.string
+  end
+
+  private
+
+  def process_files
+    collect_all_files
+    compile_gitignore_regex
+    filter_files
+    build_tree
+  end
+
+  def collect_all_files
+    Dir.chdir(@root_dir) do
+      @all_files = Dir.glob("**/*")
+                     .reject { |path| path == '.' || path == '..' }
+                     .map { |path| path.sub('./', '') }
+    end
+  end
+
+  def filter_files
+    @included_files = @all_files.reject do |path|
+      full_path = File.join(@root_dir, path)
+
+      # Skip if the path is in gitignore or is a hidden file
+      should_ignore = ignored?(path)
+
+      # Skip if it's neither a file nor a directory (e.g., symlinks, devices)
+      not_valid_filesystem_object = !File.file?(full_path) && !File.directory?(full_path)
+
+      # For files, skip if they don't match patterns or aren't text files
+      file_should_be_excluded = false#File.file?(full_path)
+      # && (!matches_patterns?(path) || !text_file)
+
+      # Return true to reject this path
+      should_ignore || not_valid_filesystem_object || file_should_be_excluded
+    end
+
+    # Return the filtered list
+    @included_files
+  end
+
+  # Builds the directory tree from included_files
+  def build_tree
+    @tree = {}
+    @included_files.each do |path|
+      parts = path.split('/')
+      current = @tree
+      parts.each do |part|
+        current[part] ||= (File.extname(part).empty? ? {} : nil)
+        current = current[part] if current[part].is_a?(Hash)
+      end
+    end
+  end
+
+  # Recursively builds the tree output into an array
+  def print_tree_to_array(hash, output, prefix = '')
+    hash.keys.sort.each_with_index do |key, index|
+      is_last = index == hash.size - 1
+      branch = is_last ? '└── ' : '├── '
+      output.puts "#{prefix}#{branch}#{key}"
+      print_tree_to_array(hash[key], output, prefix + (is_last ? '    ' : '│   ')) if hash[key].is_a?(Hash)
+    end
+  end
+
+  # Checks if a path should be ignored based on gitignore or hidden files
+  def ignored?(path)
+    path.split('/').include?('.git') || File.basename(path).start_with?('.') || @ignore_regex.match?(path.sub('./', ''))
+  end
+
+  # Safely reads file content, returning an error message if it fails
+  def read_file_content(path)
+    File.read(path)
+  rescue Errno::EACCES, Errno::ENOENT
+    'Unable to read file content'
+  end
+end
+
+# Parses command-line options and runs the script
+def main
+  options = { patterns: nil, exclude_patterns: nil, count_tokens_model: 'gpt-4o', print: false }
+
+  opt_parser = OptionParser.new do |opts|
+    opts.banner = 'Usage: files2prompt [directory] [options]'
+
+    opts.on('--include PATTERNS', 'Include files/directories matching these patterns (e.g., "*.md,*.txt,docs/")') do |patterns|
+      options[:patterns] = patterns
+    end
+
+    opts.on('--exclude PATTERNS', 'Exclude files/directories matching these patterns (e.g., "*.md,logseq/")') do |patterns|
+      options[:exclude_patterns] = patterns
+    end
+
+    opts.on('--no-print', 'Do not print the output to stdout') do
+      options[:print] = false
+    end
+
+    opts.on('--count-tokens [MODEL]', 'Count tokens (default: gpt-4o)') do |model|
+      options[:count_tokens_model] = model
+    end
+
+    opts.on('--no-clipboard', 'Do not copy to clipboard') do
+      options[:no_clipboard] = true
+    end
+
+    opts.on('-h', '--help', 'Show this help message') do
+      puts opts
+      exit
+    end
+  end
+
+  # Parse options, leaving directory argument in ARGV
+  opt_parser.parse!
+
+  # Get directory argument, default to current directory if not provided
+  directory = ARGV.shift || '.'
+
+  files_to_prompt = FilesToPrompt.new(directory,
+                                     patterns: options[:patterns],
+                                     exclude_patterns: options[:exclude_patterns])
+  output = files_to_prompt.display
+
+  # puts files_to_prompt.included_files.join("\n")
+
+  # puts output if options[:print]
+
+  if options[:count_tokens_model]
+    warn "[#{BLUE}i#{RESET}] Files: #{YELLOW}#{BOLD}#{files_to_prompt.included_files.length}#{RESET}, bytes: #{YELLOW}#{BOLD}#{output.bytesize}#{RESET}"
+
+    tokens_count = count_tokens(output, options[:count_tokens_model])
+    warn "[#{BLUE}i#{RESET}] Token count: #{YELLOW}#{BOLD}#{tokens_count}#{RESET}, Model info: #{options[:count_tokens_model]}"
+  end
+
+  unless options[:no_clipboard]
+    require 'open3'
+    Open3.popen3('pbcopy') do |stdin, _, _, wait_thr|
+      stdin.write(output)
+      stdin.close
+      wait_thr.value  # Wait for the process to complete
+      warn "#{GREEN}[✓] Copied to clipboard successfully.#{RESET}"
+    end
+  end
+end
+
+main if __FILE__ == $PROGRAM_NAME

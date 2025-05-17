@@ -19,7 +19,7 @@ end
 #: (String binary) -> Hash[String, String]
 def extract_tailscale_hosts(binary) #: -> Hash[String, String]
   begin
-    status = JSON.parse(`#{binary} status --json`)
+    status = JSON.parse(`#{binary   } status --json`)
 
     status['Peer'].each_with_object({}) do |(_, params), hosts|
       case params
