@@ -41,8 +41,7 @@ if command_present "fzf"; then
   export FZF_DEFAULT_OPTS='--reverse --border --exact --height=75% -m'
   export FZF_CTRL_T_OPTS="--bind 'ctrl-/:change-preview-window(down|hidden|)'"
 
-  # fzf config (hook: alt-c, ctrl-t, ctrl-r)
-  [[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ]] && source /usr/share/doc/fzf/examples/key-bindings.zsh
+  source $DOTFILES_PATH/src/vendor/fzf-bindings.$SHELL_ENV
 else
   add_package "fzf"
 fi
