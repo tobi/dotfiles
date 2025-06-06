@@ -50,6 +50,7 @@ bash "$DOTFILES_PATH/src/updates.sh"
 source "$DOTFILES_PATH/src/std.sh"
 source "$DOTFILES_PATH/src/prompt.sh"
 source "$DOTFILES_PATH/src/tools.sh"
+source "$DOTFILES_PATH/src/tools.trial.sh"
 source "$DOTFILES_PATH/src/secrets.sh"
 
 [[ -f "$DOTFILES_PATH/src/vendor.$VENDOR.sh" ]] && source "$DOTFILES_PATH/src/vendor.$VENDOR.sh"
