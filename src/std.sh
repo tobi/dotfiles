@@ -1,9 +1,25 @@
+# Detect the OS vendor once. Sourced before any add_package_* call.
+if [[ -z "${VENDOR:-}" ]]; then
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    export VENDOR="apple"
+  elif [[ -f /etc/os-release ]]; then
+    . /etc/os-release
+    case "${ID:-}" in
+      ubuntu|pop)      export VENDOR="ubuntu" ;;
+      debian)          export VENDOR="debian" ;;
+      arch|manjaro|garuda|endeavouros|cachyos) export VENDOR="arch" ;;
+      *)               export VENDOR="${ID:-unknown}" ;;
+    esac
+  else
+    export VENDOR="unknown"
+  fi
+fi
 missing_cmds=()
 missing_apt_package=()
 missing_brew_package=()
+missing_pacman_package=()
 
 command_present() {
-
   # test if any of $* is present
   for i in "$@"; do
     if command -v "$i" >/dev/null 2>&1; then
@@ -19,6 +35,7 @@ add_package() {
   local package="$1"
   add_apt_package "$package"
   add_brew_package "$package"
+  add_pacman_package "$package"
 }
 
 add_apt_package() {
@@ -31,14 +48,26 @@ add_brew_package() {
   missing_brew_package+=("$package")
 }
 
+add_pacman_package() {
+  local package="$1"
+  missing_pacman_package+=("$package")
+}
+
 add_package_report() {
-  if [[ $VENDOR == "apple" ]]; then
-    [[ ${#missing_brew_package[@]} -eq 0 ]] && return 0
-    echo "* grab missing: '$missing_brew_package' with 'install_missing'"
-  else
-    [[ ${#missing_apt_package[@]} -eq 0 ]] && return 0
-    echo "* grab missing: '$missing_apt_package' with 'install_missing'"
-  fi
+  case "$VENDOR" in
+    apple)
+      [[ ${#missing_brew_package[@]} -eq 0 ]] && return 0
+      echo "* grab missing: '${missing_brew_package[*]}' with 'install_missing'"
+      ;;
+    arch)
+      [[ ${#missing_pacman_package[@]} -eq 0 ]] && return 0
+      echo "* grab missing: '${missing_pacman_package[*]}' with 'install_missing'"
+      ;;
+    ubuntu|debian)
+      [[ ${#missing_apt_package[@]} -eq 0 ]] && return 0
+      echo "* grab missing: '${missing_apt_package[*]}' with 'install_missing'"
+      ;;
+  esac
 }
 
 # Function to check for commands, adjusted for Bash
@@ -76,6 +105,14 @@ install_missing() {
   if [[ "$VENDOR" == "ubuntu" || "$VENDOR" == "debian" ]]; then
     sudo apt update
     sudo apt install -y "${missing_apt_package[@]}"
+  fi
+
+  if [[ "$VENDOR" == "arch" ]]; then
+    # Install per-package: pacman aborts the whole batch on one bad name,
+    # unlike apt/brew which skip missing targets.
+    for pkg in "${missing_pacman_package[@]}"; do
+      sudo pacman -S --needed --noconfirm "$pkg" || echo "  skipped $pkg (not found or AUR-only)"
+    done
   fi
 
   if [[ "$VENDOR" == "apple" ]]; then

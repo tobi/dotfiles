@@ -1,6 +1,10 @@
 export EDITOR=nano
 export DOTFILES_PATH="$HOME/dotfiles"
 
+# Global environment variables (ported from dotnix home.nix)
+export DO_NOT_TRACK="1"
+export OLLAMA_HOST="https://ollama.tail250b8.ts.net"
+export SKILLS_DIR="$HOME/.agents/skills"
 alias ls='ls --color'
 alias ll='ls -lh'
 alias la='ls -ah'
@@ -8,6 +12,13 @@ alias lla='ls -lah'
 alias ..='cd ..'
 
 alias e="$EDITOR"
+
+# Aliases ported from dotnix home.nix / shell.nix
+alias gs="git status"
+alias sg="ast-grep"
+alias t="try"
+alias c="pbcopy"
+alias v="pbpaste"
 
 # Only allow unique entries in the PATH variable
 # This function updates PATH by removing duplicates
@@ -39,6 +50,7 @@ source "$DOTFILES_PATH/src/history.sh"
 source "$DOTFILES_PATH/src/prompt.sh"
 source "$DOTFILES_PATH/src/tools.sh"
 source "$DOTFILES_PATH/src/tools.trial.sh"
+source "$DOTFILES_PATH/src/packages.sh"
 
 [[ -f "$DOTFILES_PATH/src/vendor.$VENDOR.sh" ]] && source "$DOTFILES_PATH/src/vendor.$VENDOR.sh"
 
