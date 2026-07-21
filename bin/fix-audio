@@ -9,43 +9,101 @@
 require 'json'
 
 # first == highest
-input_priorities = [
+INPUT_PRIORITIES = [
   'CM-15',
   'Shure MV7+',
   'Shure MV7',
+  'Yeti GX',
   'Scarlett Solo USB',
   'MacBook Pro Microphone',
-]
+].freeze
 
 # first == highest
-output_priorities = [
+OUTPUT_PRIORITIES = [
   'Audioengine 2+',
   'CalDigit TS4 Audio - Rear',
   'Scarlett Solo USB',
   'Studio Display Speakers',
   'CalDigit TS4 Audio - Front',
   'MacBook Pro Speakers'
-]
+].freeze
 
-system('brew install switchaudio-osx') unless system('SwitchAudioSource -c')
+def check_switchaudio!
+  unless system('which SwitchAudioSource > /dev/null 2>&1')
+    abort 'Error: SwitchAudioSource not found. Install with: brew install switchaudio-osx'
+  end
+end
 
-# brew install switchaudio-osx
-devices = `SwitchAudioSource -a -f json`.split("\n").map { |l| JSON.parse(l) }
-
-def highest_priority_device(devices, prios)
-  ordered = devices.sort_by! do |device|
-    prios.index(device['name']) or (prios.size + 1)
+def get_devices
+  output = `SwitchAudioSource -a -f json 2>&1`
+  unless $?.success?
+    abort "Error: Failed to list audio devices: #{output}"
   end
 
-  ordered.first
+  output.split("\n").map do |line|
+    JSON.parse(line) rescue nil
+  end.compact
+end
+
+def highest_priority_device(devices, priorities)
+  devices.min_by do |device|
+    priorities.index(device['name']) || (priorities.size + 1)
+  end
+end
+
+def switch_device(name, type)
+  output = `SwitchAudioSource -s #{name.inspect} -t #{type} 2>&1`
+  unless $?.success?
+    return { success: false, error: output.strip }
+  end
+
+  current = `SwitchAudioSource -c -t #{type} 2>&1`.strip
+  if current != name
+    return { success: false, error: "Switch reported success but device is '#{current}'" }
+  end
+
+  { success: true }
+end
+
+check_switchaudio!
+devices = get_devices
+
+if devices.empty?
+  abort 'Error: No audio devices found'
 end
 
 inputs, outputs = devices.partition { |d| d['type'] == 'input' }
 
-input = highest_priority_device(inputs, input_priorities)
-system("SwitchAudioSource -s #{input['name'].inspect} -t input")
+errors = []
+results = []
 
-output = highest_priority_device(outputs, output_priorities)
-system("SwitchAudioSource -s #{output['name'].inspect} -t output")
+if inputs.empty?
+  errors << 'No input devices available'
+else
+  input = highest_priority_device(inputs, INPUT_PRIORITIES)
+  result = switch_device(input['name'], 'input')
+  if result[:success]
+    results << "In: #{input['name']}"
+  else
+    errors << "Input failed: #{result[:error]}"
+  end
+end
 
-puts "Now: #{input['name']} // #{output['name']}"
+if outputs.empty?
+  errors << 'No output devices available'
+else
+  output = highest_priority_device(outputs, OUTPUT_PRIORITIES)
+  result = switch_device(output['name'], 'output')
+  if result[:success]
+    results << "Out: #{output['name']}"
+  else
+    errors << "Output failed: #{result[:error]}"
+  end
+end
+
+if errors.any?
+  puts "#{results.join(' // ')} [ERRORS: #{errors.join('; ')}]"
+  exit 1
+else
+  puts results.join(' // ')
+end
