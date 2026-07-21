@@ -3,9 +3,9 @@
 # registers the remaining useful CLI tools so add_package_report can
 # suggest installs for anything missing.
 
-# Shell (dotfiles are zsh-first)
-add_package "zsh"
-
+# Shell — zsh is optional (needed for right-prompt and richer keybindings);
+# the dotfiles work fully in bash. Install only if you want rprompt.
+# add_package "zsh"
 # ── Core utilities ────────────────────────────────────────────────────
 add_package "bc"
 add_package "curl"
