@@ -5,84 +5,130 @@ require 'date'
 require 'json'
 require 'fileutils'
 
-# Find the Tailscale binary path
-#: () -> String
-def find_tailscale_binary #: -> String
-  if File.exist?("/Applications/Tailscale.app/Contents/MacOS/Tailscale")
-    "/Applications/Tailscale.app/Contents/MacOS/Tailscale"
-  else
-    "tailscale"
-  end
+HOSTS_FILE = '/etc/hosts'
+
+# Normalize hostname: strip trailing dots, downcase
+def normalize(host)
+  host&.chomp('.')&.downcase
 end
 
-# Get Tailscale status and extract host-to-IP mappings
-#: (String binary) -> Hash[String, String]
-def extract_tailscale_hosts(binary) #: -> Hash[String, String]
-  begin
-    status = JSON.parse(`#{binary   } status --json`)
+# Parse /etc/hosts into { hostname => ip }
+def parse_hosts_file
+  hosts = {}
+  File.readlines(HOSTS_FILE).each do |line|
+    line = line.strip
+    next if line.empty? || line.start_with?('#')
 
-    status['Peer'].each_with_object({}) do |(_, params), hosts|
-      case params
-      in { 'HostName' => hostname, 'TailscaleIPs' => [ip, *_] } if hostname && !ip.nil?
-        hosts[hostname] = ip
-      else
-        # Skip entries without hostname or IPs
+    parts = line.split
+    next if parts.length < 2
+
+    ip = parts[0]
+    parts[1..].each { |host| hosts[normalize(host)] = ip }
+  end
+  hosts
+end
+
+# Get Tailscale peers + VIP services as { hostname => ip }
+def fetch_tailscale_hosts
+  binary = `which tailscale`.strip
+  abort 'tailscale not found' if binary.empty?
+
+  status = JSON.parse(`#{binary} status --json`)
+  hosts = {}
+  tailscale_ips = Set.new
+
+  status['Peer']&.each_value do |peer|
+    dnsname = normalize(peer['DNSName'])
+    ips = peer['TailscaleIPs']
+
+    next unless dnsname && ips&.any?
+
+    ip = ips.first
+    tailscale_ips << ip
+
+    # Extract short hostname from DNSName (e.g., "a6000" from "a6000.tail250b8.ts.net")
+    short_name = dnsname.split('.').first
+
+    hosts[short_name] = ip
+    hosts[dnsname] = ip
+  end
+
+  # VIP services (e.g. svc:ollama -> ollama.<tailnet>) live in the netmap, not status.
+  netmap_json = `#{binary} debug netmap 2>/dev/null`
+  if !netmap_json.empty?
+    begin
+      netmap = JSON.parse(netmap_json)
+      tailnet = normalize(status['MagicDNSSuffix'])
+      (netmap.dig('DNS', 'ExtraRecords') || []).each do |rec|
+        name = normalize(rec['Name'])
+        ip = rec['Value']
+        next unless name && ip
+        next if ip.include?(':') # skip IPv6
+        next if tailnet && !name.end_with?(".#{tailnet}")
+
+        tailscale_ips << ip
+        hosts[name] = ip
+        hosts[name.split('.').first] = ip
       end
-    end.tap { |hosts| hosts.delete('localhost') }
-  rescue => e
-    warn "Error fetching Tailscale status: #{e.message}"
-    exit 1
+    rescue JSON::ParserError
+      # netmap unavailable; skip silently
+    end
+  end
+
+  hosts.delete('localhost')
+  [hosts, tailscale_ips]
+end
+
+# Reverse { host => ip } to { ip => [hosts] }
+def group_by_ip(host_to_ip)
+  host_to_ip.each_with_object(Hash.new { |h, k| h[k] = [] }) do |(host, ip), acc|
+    acc[ip] << host
   end
 end
 
-# Create a backup of the hosts file
-#: () -> String
-def backup_hosts_file #: -> String
+# Backup and write new hosts file
+def write_hosts_file(ip_to_hosts)
   timestamp = DateTime.now.strftime('%Y-%m-%d-%H%M%S')
   backup_path = "/tmp/hosts.old.#{timestamp}"
+  FileUtils.cp(HOSTS_FILE, backup_path)
 
-  FileUtils.cp('/etc/hosts', backup_path)
+  File.open(HOSTS_FILE, 'w') do |f|
+    ip_to_hosts.each do |ip, hosts|
+      f.puts "#{ip}\t#{hosts.uniq.sort.join(' ')}"
+    end
+  end
+
   backup_path
 end
 
-# Update the hosts file with Tailscale information
-#: (Hash[String, String] tailscale_hosts) -> void
-def update_hosts_file(tailscale_hosts) #: -> void
-  hosts_content = File.read('/etc/hosts')
-
-  File.open('/etc/hosts', 'w+') do |file|
-    # Keep existing lines that don't reference Tailscale hosts
-    hosts_content.each_line do |line|
-      if line =~ /\s(\S+)$/ && $1 && tailscale_hosts[$1]
-        # Skip lines for hosts we'll add from Tailscale
-      else
-        file.puts(line)
-      end
-    end
-
-    # Add Tailscale hosts
-    file.puts
-    file.puts("# added by tailscale script") unless hosts_content.include?("# added by tailscale script")
-    file.puts
-
-    tailscale_hosts.each do |host, ip|
-      file.puts("#{ip}\t#{host}")
-    end
+# Flush DNS cache
+def flush_dns
+  case RUBY_PLATFORM
+  when /darwin/
+    system('dscacheutil -flushcache')
+    system('killall -HUP mDNSResponder')
+  when /linux/
+    system('resolvectl flush-caches') if system('which resolvectl > /dev/null 2>&1')
   end
 end
 
-# Main execution
+# Main
 begin
-  binary = find_tailscale_binary
-  tailscale_hosts = extract_tailscale_hosts(binary)
-  backup_path = backup_hosts_file
+  hosts = parse_hosts_file
+  tailscale_hosts, tailscale_ips = fetch_tailscale_hosts
 
+  # Remove any existing entries pointing to Tailscale IPs (handles renames)
+  hosts.reject! { |_, ip| tailscale_ips.include?(ip) }
 
-  puts "Successfully updated /etc/hosts with #{tailscale_hosts.size} Tailscale entries"
-  update_hosts_file(tailscale_hosts)
-  puts "Successfully updated /etc/hosts with #{tailscale_hosts.size} Tailscale entries"
-  puts "Backup created at #{backup_path}"
+  # Merge: tailscale entries added fresh
+  hosts.merge!(tailscale_hosts)
+
+  ip_to_hosts = group_by_ip(hosts)
+  backup = write_hosts_file(ip_to_hosts)
+  flush_dns
+
+  puts "Updated #{HOSTS_FILE} (#{tailscale_hosts.size} tailscale entries)"
+  puts "Backup: #{backup}"
 rescue => e
-  warn "Error: #{e.message}"
-  exit 1
+  abort "Error: #{e.message}"
 end

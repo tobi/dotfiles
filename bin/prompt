@@ -1,0 +1,50 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'open3'
+
+def process_file(filename)
+  content = File.read(filename)
+
+  # Remove front matter
+  content = content.sub(/\A---\n.*?\n---\n/m, '')
+
+  # Process inline code with ! prefix recursively
+  loop do
+    changed = false
+    content = content.gsub(/!`([^`]+)`/) do |match|
+      code = $1
+      changed = true
+
+      # Log to stderr in blue
+      $stderr.puts "\e[34m$ #{code}\e[0m"
+
+      # Execute the code and capture stdout
+      stdout, stderr, status = Open3.capture3(code)
+
+      # Return the output (stdout only), trimmed
+      stdout.strip
+    end
+    break unless changed
+  end
+
+  content
+end
+
+# Main execution
+if ARGV.empty?
+  puts "Usage: prompt <file>"
+  exit 1
+end
+
+filename = ARGV[0]
+
+unless File.exist?(filename)
+  puts "Error: File '#{filename}' not found"
+  exit 1
+end
+
+# Log streaming file to stderr in blue
+$stderr.puts "\e[34mStreaming #{filename}\e[0m"
+
+puts process_file(filename)

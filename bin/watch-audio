@@ -1,0 +1,22 @@
+#!/bin/bash
+# Watches for audio device changes and runs fix-audio
+# Uses SwitchAudioSource's built-in monitoring capability
+
+SCRIPT_DIR="$(dirname "$0")"
+LAST_DEVICES=""
+DEBOUNCE_SECS=2
+
+while true; do
+    CURRENT_DEVICES=$(SwitchAudioSource -a 2>/dev/null | sort)
+
+    if [[ "$CURRENT_DEVICES" != "$LAST_DEVICES" ]]; then
+        if [[ -n "$LAST_DEVICES" ]]; then
+            # Devices changed (not first run)
+            sleep "$DEBOUNCE_SECS"  # Debounce rapid changes during USB enumeration
+            "$SCRIPT_DIR/fix-audio"
+        fi
+        LAST_DEVICES="$CURRENT_DEVICES"
+    fi
+
+    sleep 2
+done

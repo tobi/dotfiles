@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+#
+# chromium-ssh — SSH SOCKS5 proxy + Chromium in one shot
+#
+# Usage:
+#   chromium-ssh [host] [port]
+#
+#   host  SSH target (default: dev)
+#   port  Local SOCKS5 port (default: 9050)
+#
+# Examples:
+#   chromium-ssh              # proxy through "dev" on port 9050
+#   chromium-ssh staging      # proxy through "staging"
+#   chromium-ssh prod 9999    # proxy through "prod" on port 9999
+
+set -euo pipefail
+
+HOST="${1:-dev}"; shift 2>/dev/null || true
+PORT="${1:-9050}"; shift 2>/dev/null || true
+CHROMIUM=""
+
+# --- Find Chromium / Chrome on macOS ---
+for app in \
+  "/Applications/Chromium.app/Contents/MacOS/Chromium" \
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+  "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary" \
+  "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"; do
+  if [[ -x "$app" ]]; then
+    CHROMIUM="$app"
+    break
+  fi
+done
+
+if [[ -z "$CHROMIUM" ]]; then
+  echo "error: no Chromium or Chrome found in /Applications" >&2
+  exit 1
+fi
+
+echo "🔗 Opening SOCKS5 proxy to $HOST on localhost:$PORT …"
+echo "🌐 Browser: $(basename "$CHROMIUM")"
+
+# --- Start SSH SOCKS5 proxy in the background ---
+# -D  dynamic port forwarding (SOCKS5)
+# -N  no remote command
+# -C  compression
+# -q  quiet
+ssh -D "$PORT" -N -C -q "$HOST" &
+SSH_PID=$!
+
+# Give SSH a moment to establish the tunnel
+sleep 1
+
+# Make sure SSH actually started
+if ! kill -0 "$SSH_PID" 2>/dev/null; then
+  echo "error: SSH tunnel failed to start" >&2
+  exit 1
+fi
+
+echo "✅ SSH tunnel up (pid $SSH_PID)"
+
+# --- Clean up on exit ---
+cleanup() {
+  echo ""
+  echo "🧹 Shutting down SSH tunnel (pid $SSH_PID) …"
+  kill "$SSH_PID" 2>/dev/null || true
+  wait "$SSH_PID" 2>/dev/null || true
+  echo "👋 Done."
+}
+trap cleanup EXIT INT TERM
+
+# --- Launch Chromium through the proxy ---
+# --proxy-server        route all traffic through our SOCKS5 tunnel
+# --user-data-dir       persistent profile under ~/.cache so it survives restarts
+# --no-first-run        skip welcome screens
+# --proxy-bypass-list   (empty — route everything through the proxy)
+PROFILE_DIR="$HOME/.cache/chromium-ssh"
+mkdir -p "$PROFILE_DIR"
+
+# --- Set a distinctive theme color (orange) so you know it's the proxy browser ---
+# Chromium stores the user-chosen theme color in Preferences JSON.
+PREFS="$PROFILE_DIR/Default/Preferences"
+if [[ ! -f "$PREFS" ]]; then
+  mkdir -p "$PROFILE_DIR/Default"
+  # user_color = ARGB hex for a warm orange (#FF8C00 = DarkOrange)
+  # browser.theme.color_scheme = 2 (force dark so the orange frame pops)
+  cat > "$PREFS" <<'EOF'
+{
+  "browser": {
+    "theme": {
+      "color_scheme": 2,
+      "user_color": -29696
+    }
+  }
+}
+EOF
+fi
+
+echo "🚀 Launching browser (profile: $PROFILE_DIR) …"
+echo "   All traffic goes through $HOST. Close the browser to stop."
+echo ""
+
+"$CHROMIUM" \
+  --proxy-server="socks5://localhost:$PORT" \
+  --host-resolver-also-proxy \
+  --user-data-dir="$PROFILE_DIR" \
+  --no-first-run \
+  --disable-default-apps \
+  --proxy-bypass-list="<-loopback>" \
+  "$@"
+
+# Browser exited → cleanup runs via trap

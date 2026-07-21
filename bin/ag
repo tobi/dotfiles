@@ -1,0 +1,432 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "fileutils"
+require "shellwords"
+require "tmpdir"
+
+
+# ag - tmux agent manager
+#
+# All named ag tasks live as windows (tabs) inside one global tmux session.
+# Each task name maps to a deterministic tmux window name.
+# A dedicated tmux config locks down titles and provides tab switching hotkeys.
+
+SESSION = "ag"
+INIT_TAB = "_ag_init_"
+TMUX_SOCKET = "ag"
+TMUX_CONF = File.expand_path("../../config/ag/tmux.conf", __FILE__)
+BASH_RC = File.expand_path("../../config/ag/bashrc", __FILE__)
+SHELL_CMD = "bash --rcfile #{Shellwords.escape(BASH_RC)} --noprofile"
+
+module Ag
+  module_function
+
+  ANSI_ESCAPE = /\e\[[\d;?]*[A-Za-z]/.freeze
+
+  # -- tmux primitive --------------------------------------------------------
+
+  def session_name
+    SESSION
+  end
+
+  def tmux_cmd
+    ["tmux", "-L", TMUX_SOCKET, "-f", TMUX_CONF]
+  end
+
+  def socket_path
+    File.join(ENV["TMUX_TMPDIR"] || "/tmp", "tmux-#{Process.uid}", TMUX_SOCKET)
+  end
+
+  def server_running?
+    File.exist?(socket_path)
+  end
+
+  def tmux(*args, allow_fail: false)
+    out = IO.popen([*tmux_cmd, *args.map(&:to_s)], err: [:child, :out], &:read)
+    return out if $?.success? || allow_fail
+    $stderr.puts "tmux #{args.first}: #{out.strip}"
+    exit 1
+  end
+
+  def reload_config!
+    return unless server_running?
+    system(*tmux_cmd, "source-file", TMUX_CONF, out: File::NULL, err: File::NULL)
+  end
+
+  def session?
+    return false unless server_running?
+    system(*tmux_cmd, "has-session", "-t", session_name, out: File::NULL, err: File::NULL)
+  end
+
+  def ensure_session!
+    reload_config!
+    return if session?
+    tmux("new-session", "-d", "-s", session_name, "-n", INIT_TAB,
+         "-c", Dir.pwd,
+         "-e", "AG_PANEL=#{INIT_TAB}", SHELL_CMD)
+  end
+
+  # -- tab registry ----------------------------------------------------------
+
+  def strip_ansi(text)
+    text.gsub(ANSI_ESCAPE, "")
+  end
+
+  def window_map
+    return {} unless session?
+    result = {}
+    tmux("list-windows", "-t", session_name,
+         "-F", '#{window_id} #{window_index} #{window_name}').lines.each do |line|
+      line = line.strip
+      next if line.empty?
+      id, index, name = line.split(" ", 3)
+      next unless id && index
+      result[name.to_s.strip] = { id: id.strip, index: index.to_i }
+    end
+    result
+  end
+
+  def find_tab(name)
+    window_map[name]&.fetch(:id)
+  end
+
+  def tabs
+    wm = window_map
+    wm.delete(INIT_TAB)
+    wm
+  end
+
+  def resolve(name)
+    find_tab(name) or abort("ag: tab '#{name}' not found")
+  end
+
+  # -- lazy tab creation -----------------------------------------------------
+
+  def ensure_tab!(name)
+    return find_tab(name) if find_tab(name)
+    ensure_session!
+
+    init = find_tab(INIT_TAB)
+    if init && tabs.empty?
+      tmux("rename-window", "-t", init, name)
+      tmux("send-keys", "-t", init, "-l", "--", "export AG_PANEL=#{Shellwords.escape(name)}; clear")
+      tmux("send-keys", "-t", init, "Enter")
+      # Wait for the shell to fully settle after the init commands.
+      # The shell emits ready sequences (\e[?2004h etc.) as it re-renders
+      # the prompt after `clear`. We need to let those flush so that
+      # stream_for only sees output from the actual command.
+      sleep 0.5
+      init
+    else
+      tmux("new-window", "-d", "-t", session_name,
+           "-n", name,
+           "-c", Dir.pwd,
+           "-e", "AG_PANEL=#{Shellwords.escape(name)}",
+           "-P", "-F", '#{window_id}',
+           SHELL_CMD).strip
+    end
+  end
+
+  # -- streaming infrastructure ----------------------------------------------
+
+  READY_SEQUENCES = [
+    "\e[?2004h",  # bracketed paste enable (zsh, bash)
+    "\e[?25h",    # show cursor
+  ].freeze
+
+  INTERACTIVE_PROMPT_RE = Regexp.union(
+    /(?:password|passphrase|passcode)\s*:\s*$/i,
+    /\[y\/n\]\s*:?\s*$/i,
+    /\(y\/n\)\s*:?\s*$/i,
+    /\[yes\/no\]\s*:?\s*$/i,
+    /continue\?\s*\[y\/n\]\s*$/i,
+    /press\s+(?:enter|return|any\s+key)/i,
+    /enter\s+(?:password|passphrase|pin)\s*:\s*$/i,
+  ).freeze
+
+  LOG_DIR = File.join(Dir.home, ".ag", "logs")
+
+  def save_timeout_log(raw_bytes, tab_name, context)
+    FileUtils.mkdir_p(LOG_DIR)
+    ts = Time.now.strftime("%Y%m%d-%H%M%S")
+    path = File.join(LOG_DIR, "#{tab_name}-#{context}-#{ts}.raw")
+    File.binwrite(path, raw_bytes)
+    $stderr.puts "ag: raw output saved to #{path}"
+    $stderr.puts "ag: inspect with: xxd #{path} | less"
+  end
+
+  def stream_for(target, timeout: nil, tab_name: nil)
+    unless timeout
+      yield
+      return
+    end
+
+    dir = Dir.mktmpdir("ag-stream-")
+    out_path = File.join(dir, "output")
+    FileUtils.touch(out_path)
+    all_data = String.new(encoding: "BINARY")
+
+    tmux("pipe-pane", "-o", "-t", target, "cat >> #{Shellwords.escape(out_path)}")
+
+    yield
+
+    pos = 0
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + timeout
+    timed_out = true
+
+    File.open(out_path, "rb") do |file|
+      loop do
+        now = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+        break if now >= deadline
+
+        size = File.size(out_path) rescue 0
+        if size > pos
+          file.seek(pos)
+          data = file.read(size - pos)
+          if data && !data.empty?
+            $stdout.write(data)
+            $stdout.flush
+            pos += data.bytesize
+            all_data << data
+
+            if READY_SEQUENCES.any? { |seq| data.include?(seq) }
+              timed_out = false
+              cap = now + 0.2
+              deadline = cap if cap < deadline
+            end
+
+            tail = strip_ansi(all_data.byteslice(-512, 512) || all_data)
+            if INTERACTIVE_PROMPT_RE.match?(tail)
+              timed_out = false
+              cap = now + 0.3
+              deadline = cap if cap < deadline
+            end
+          end
+        else
+          sleep 0.05
+        end
+      end
+    end
+
+    if timed_out && !all_data.empty?
+      save_timeout_log(all_data, tab_name || "unknown", "stream")
+    end
+
+    tmux("pipe-pane", "-t", target) # stop piping
+  ensure
+    FileUtils.rm_rf(dir) if dir && timeout
+  end
+
+  # -- core API --------------------------------------------------------------
+
+  def shell(name, command, timeout: nil)
+    abort("missing command") if command.nil? || command.strip.empty?
+    target = ensure_tab!(name)
+
+    stream_for(target, timeout: timeout, tab_name: name) do
+      tmux("send-keys", "-t", target, "-l", "--", command)
+      tmux("send-keys", "-t", target, "Enter")
+    end
+  end
+
+  SPECIAL_KEYS = {
+    "Enter" => "Enter",
+    "Tab" => "Tab",
+    "Esc" => "Escape",
+    "BSpace" => "BSpace",
+    "Space" => "Space",
+    "Up" => "Up",
+    "Down" => "Down",
+    "Left" => "Left",
+    "Right" => "Right",
+  }.freeze
+
+  def normalize_key(token)
+    # C-c, C-d, C-z, etc.
+    m = token.match(/\AC-(.)\z/i)
+    return "C-#{m[1].downcase}" if m
+    SPECIAL_KEYS[token]
+  end
+
+  def send_keys(name, *keys, timeout: nil)
+    target = ensure_tab!(name)
+    stream_for(target, timeout: timeout, tab_name: name) do
+      keys.each do |token|
+        key = normalize_key(token)
+        if key
+          tmux("send-keys", "-t", target, key)
+        else
+          tmux("send-keys", "-t", target, "-l", "--", token)
+        end
+      end
+    end
+  end
+
+  def read(name, full: false)
+    target = resolve(name)
+    args = ["capture-pane", "-p", "-t", target]
+    args += ["-S", "-"] if full
+    output = tmux(*args)
+    lines = output.lines
+    lines.pop while lines.last&.strip&.empty?
+    lines.empty? ? "" : lines.join
+  end
+
+  def kill(name)
+    target = find_tab(name)
+    return unless target
+    tmux("kill-window", "-t", target, allow_fail: true)
+  end
+
+  def terminate
+    tmux("kill-session", "-t", session_name, allow_fail: true)
+  end
+
+  def watch(readonly: false)
+    ensure_session!
+    ensure_tab!("shell") if tabs.empty?
+    # Select the best initial window: prefer cwd match, then most recent activity
+    select_best_window!
+    args = [*tmux_cmd, "attach-session", "-t", session_name]
+    args << "-r" if readonly
+    exec(*args)
+  end
+
+  def select_best_window!
+    cwd = Dir.pwd
+    windows = tmux("list-windows", "-t", session_name,
+                   "-F", '#{window_id} #{window_activity} #{pane_current_path}',
+                   allow_fail: true).to_s.lines.map do |line|
+      id, activity, path = line.strip.split(" ", 3)
+      next unless id && activity && path
+      { id: id, activity: activity.to_i, path: path }
+    end.compact
+    windows.reject! { |w| w[:path].nil? || w[:path].empty? }
+    return if windows.empty?
+
+    # Prefer windows whose pane cwd matches or is under the current directory
+    cwd_matches = windows.select { |w| w[:path].start_with?(cwd) || cwd.start_with?(w[:path]) }
+    best = if cwd_matches.any?
+             cwd_matches.max_by { |w| w[:activity] }
+           else
+             windows.max_by { |w| w[:activity] }
+           end
+    tmux("select-window", "-t", best[:id]) if best
+  end
+
+  def list
+    t = tabs
+    if t.empty?
+      puts "no tabs"
+    else
+      t.sort_by { |_name, meta| meta[:index] }.each do |name, meta|
+        puts "  #{meta[:index]}\t#{name}\t#{meta[:id]}"
+      end
+    end
+  end
+end
+
+# -- CLI -----------------------------------------------------------------------
+
+HELP = <<~TEXT
+  ag — tmux tab manager for agents
+
+  Tabs are named tmux windows inside one global ag session.
+  Created automatically on first use. Names never drift.
+
+  ag NAME shell COMMAND...    run command, stream output back
+  ag NAME send-keys KEY...    send keys/hotkeys to tab
+  ag NAME read [--full]       capture tab buffer
+  ag NAME kill                remove tab
+
+  ag list                     list tabs in the global session
+  ag watch [-r]               attach to session (read-write default, -r for read-only)
+
+  Options:
+    -tN                       timeout in seconds (default: -t5)
+
+  send-keys reference:
+    C-c C-d C-z               ctrl combos
+    Enter Tab Esc Space       special keys
+    Up Down Left Right        arrow keys
+    BSpace                    backspace
+    "some text"               literal text
+
+  Examples:
+    ag server shell "npm start"         launch a dev server
+    ag server read                      check its output
+    ag server send-keys C-c             ctrl-c to stop it
+    ag app shell "python main.py"      run in another tab
+    ag repl shell "irb"                start a repl
+    ag repl send-keys "puts :hi" Enter type + enter in repl
+    ag repl send-keys Tab               trigger completion
+    ag repl send-keys Up Enter          recall last command
+    ag repl send-keys C-d               EOF to exit repl
+    ag server kill                      remove a tab
+    ag list                             see all tabs
+TEXT
+
+# Parse -tN timeout flag from anywhere in ARGV (default: 5s)
+TIMEOUT = begin
+  idx = ARGV.index { |a| a.match?(/\A-t\d+\z/) }
+  idx ? ARGV.delete_at(idx)[2..].to_f : 5.0
+end
+
+# Global commands
+case ARGV.first
+when "list"
+  Ag.list
+  exit
+when "terminate"
+  unless ARGV.include?("--yes")
+    t = Ag.tabs
+    if t.any?
+      puts "active tabs:"
+      t.sort_by { |_name, meta| meta[:index] }.each do |name, meta|
+        puts "  #{meta[:index]}\t#{name}\t#{meta[:id]}"
+      end
+    end
+    abort "only run terminate if none of the tabs are needed anymore — confirm with: ag terminate --yes"
+  end
+  Ag.terminate
+  puts "session destroyed"
+  exit
+when "watch", "attach"
+  ro = ARGV.include?("-r")
+  Ag.watch(readonly: ro)
+  exit
+when nil, "-h", "--help", "help"
+  $stderr.puts HELP
+  exit
+end
+
+# Tab commands: ag NAME COMMAND [ARGS...]
+COMMANDS = %w[shell send-keys read kill].freeze
+
+name = ARGV.shift
+cmd = ARGV.shift
+
+unless cmd && COMMANDS.include?(cmd)
+  $stderr.puts HELP
+  exit 1
+end
+
+case cmd
+when "shell"
+  command = ARGV.size == 1 ? ARGV.first : Shellwords.shelljoin(ARGV)
+  abort(HELP) if command.empty?
+  Ag.shell(name, command, timeout: TIMEOUT)
+
+when "send-keys"
+  abort(HELP) if ARGV.empty?
+  Ag.send_keys(name, *ARGV, timeout: TIMEOUT)
+
+when "read"
+  full = ARGV.delete("--full")
+  print Ag.read(name, full: !!full)
+
+when "kill"
+  Ag.kill(name)
+  puts "- #{name}"
+end

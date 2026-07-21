@@ -1,0 +1,12 @@
+# ag panel shell — minimal, deterministic
+bind 'set enable-bracketed-paste on' 2>/dev/null
+__ag_prompt() {
+  local ec=$?
+  local name="${AG_PANEL:-ag}"
+  if [ $ec -eq 0 ]; then
+    PS1="$name \\w \\$ "
+  else
+    PS1="$name [exit $ec] \\w \\$ "
+  fi
+}
+PROMPT_COMMAND=__ag_prompt

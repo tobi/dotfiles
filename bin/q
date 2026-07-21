@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+pi_cmd=(pi)
+if command -v devx >/dev/null 2>&1; then
+  pi_cmd=(devx pi)
+fi
+
+exec "${pi_cmd[@]}" --print -p \
+  --system-prompt "You are a helpful, concise assistant
+running in a macOS terminal. Answer clearly and accurately.
+You can read files from disk and search the web — use those
+when you need current or file-specific information." \
+  --tools "read,web_search,url_extract,web_fetch,batch_web_fetch" \
+  "$@"

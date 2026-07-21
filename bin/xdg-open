@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Fake xdg-open: print URLs to the real user's terminal so they can open them
+# manually, usually through an SSH SOCKS proxy from a local Mac.
+
+set -euo pipefail
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  exec /usr/bin/open "$@"
+fi
+
+if [[ $# -eq 0 ]]; then
+  echo "usage: xdg-open URL" >&2
+  exit 2
+fi
+
+url="$*"
+real_user="${SUDO_USER:-${USER:-$(id -un)}}"
+tty="$(who | awk -v u="$real_user" '$1 == u { print "/dev/" $2; exit }')"
+
+printf -v quoted_url "%q" "$url"
+
+osc8_start=$'\e]8;;'"$url"$'\e\\'
+osc8_end=$'\e]8;;\e\\'
+
+msg=$'\n'
+msg+=$'\e[1;33m=== xdg-open shim ===\e[0m\n'
+msg+=$'\n'
+msg+=$'\e[1mOpen this URL in your browser:\e[0m\n'
+msg+=$'\n'
+msg+="  ${osc8_start}${url}${osc8_end}"$'\n'
+msg+=$'\n'
+msg+=$'\e[2m(clickable in terminals that support OSC 8 hyperlinks)\e[0m\n'
+msg+=$'\n'
+msg+=$'\e[1;36m=== Install this shim on the remote host ===\e[0m\n'
+msg+=$'\n'
+msg+=$'\e[32m'
+msg+='sudo cp ~/dotnix/bin/xdg-open /usr/local/bin/xdg-open'
+msg+=$'\e[0m\n'
+msg+=$'\n'
+msg+=$'\e[1;36m=== One command from your local machine ===\e[0m\n'
+msg+=$'\n'
+msg+=$'\e[32m'
+msg+="~/dotnix/bin/chromium-ssh dev 9050 ${quoted_url}"
+msg+=$'\e[0m\n'
+msg+=$'\n'
+msg+=$'\e[1;36m=== Manual setup from your local machine ===\e[0m\n'
+msg+=$'\n'
+msg+=$'\e[2m# 1. Start a SOCKS proxy over SSH:\e[0m\n'
+msg+=$'\e[32m'
+msg+='ssh -D 9050 -N -C -q dev &'
+msg+=$'\e[0m\n'
+msg+=$'\n'
+msg+=$'\e[2m# 2. Launch Chrome through the proxy with the URL:\e[0m\n'
+msg+=$'\e[32m'
+msg+='open -a "Google Chrome" --args --proxy-server="socks5://localhost:9050" \'
+msg+=$'\n'
+msg+='  --host-resolver-also-proxy --proxy-bypass-list="<-loopback>" \'
+msg+=$'\n'
+msg+='  --user-data-dir="$HOME/.cache/ssh-chrome" --no-first-run \'
+msg+=$'\n'
+msg+="  ${quoted_url}"
+msg+=$'\e[0m\n'
+msg+=$'\n'
+msg+=$'\e[2m# The callback to 127.0.0.1 will route back through the SOCKS tunnel.\e[0m\n'
+msg+=$'\n'
+msg+=$'\e[1;33m=====================\e[0m\n'
+
+if [[ -n "$tty" && -w "$tty" ]]; then
+  printf "%s" "$msg" > "$tty"
+else
+  printf "%s" "$msg" >&2
+fi
+
+exit 0
