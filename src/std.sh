@@ -100,7 +100,6 @@ sh_cmd() {
 
 # Function to install missing commands, adjusted for Bash loop syntax
 install_missing() {
-  set +x
 
   if [[ "$VENDOR" == "ubuntu" || "$VENDOR" == "debian" ]]; then
     sudo apt update
@@ -119,7 +118,6 @@ install_missing() {
     brew install "${missing_brew_package[@]}"
   fi
 
-  set -x
 }
 
 # Function to append to a file

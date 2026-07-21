@@ -72,27 +72,26 @@ update_prompt_bash() {
 
   # Check for GIT_BRANCH and set the branch and rprompt
   if [[ -n $GIT_BRANCH ]]; then
-    branch=" \[${cyan}\]($GIT_BRANCH)\[${reset}\]"
-    rprompt="\[${green}\](git) $GIT_BRANCH: +$GIT_MODS\[${reset}\]"
+    branch=" ${cyan}($GIT_BRANCH)${reset}"
+    rprompt="${green}(git) $GIT_BRANCH: +$GIT_MODS${reset}"
   fi
 
   # Check for virtual environments
   if [[ -n $VIRTUAL_ENV ]]; then
-    rprompt="$rprompt \[${magenta}\][venv:$(basename "$VIRTUAL_ENV")]\[${reset}\]"
+    rprompt="$rprompt ${magenta}[venv:$(basename "$VIRTUAL_ENV")]${reset}"
   elif [[ -n $CONDA_DEFAULT_ENV ]]; then
-    rprompt="$rprompt \[${magenta}\](conda) $CONDA_DEFAULT_ENV\[${reset}\]"
+    rprompt="$rprompt ${magenta}(conda) $CONDA_DEFAULT_ENV${reset}"
   fi
-
   # Set host for SSH connections
   local host=""
   if [[ -n $SSH_CONNECTION ]]; then
-    host="\[${green}\][$(hostname)] \[${reset}\]"
+    host="${green}[$(hostname)] ${reset}"
   fi
 
   # Set exit code indicator
   local exit_indicator=""
   if [[ $exit_code -ne 0 ]]; then
-    exit_indicator="\[${red}\]✘ ${exit_code}\[${reset}\]"
+    exit_indicator="${red}✘ ${exit_code}${reset}"
   fi
 
   if [[ -n $rprompt ]]; then
@@ -100,7 +99,7 @@ update_prompt_bash() {
   fi
 
   # Set prompt
-  PS1="[bash] ${exit_indicator}${host}\[${blue}\]\u \[${blue}\]\w${branch} ${chevron}\[${reset}\] "
+  PS1="[bash] ${exit_indicator}${host}${blue}\u ${blue}\w${branch} ${chevron}${reset} "
 
   # Set terminal title (works in most terminal emulators)
   # PS1+="\[\033]0;\w\007\]"
