@@ -28,6 +28,7 @@ fi
 cd $HOME/dotfiles
 
 echo "installing dotfiles to zsh/bash"
+chmod +w $HOME/.zshrc 2>/dev/null || true
 echo "# Dotfiles" > $HOME/.zshrc
 echo "source \$HOME/dotfiles/shell" >> $HOME/.zshrc
 touch $HOME/.zshrc.local
