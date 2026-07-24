@@ -2,13 +2,13 @@ if command_present "rg"; then
   alias grep="rg"
   export FZF_DEFAULT_COMMAND='rg --files'
 else
-  add_package "ripgrep"
+  add_package_mise "rg" "ripgrep"
 fi
 
 if command_present "zoxide"; then
   eval "$(zoxide init $SHELL_ENV)"
 else
-  add_package "zoxide"
+  add_package_mise "zoxide" "zoxide"
 fi
 
 if command_present "fdfind"; then
@@ -22,9 +22,7 @@ fi
 if command_present "fd"; then
   export FZF_ALT_C_COMMAND='fd --type directory'
 else
-  add_apt_package "fd-find"
-  add_brew_package "fd"
-  add_pacman_package "fd"
+  add_package_mise "fd" "fd-find" "fd" "fd"
 fi
 
 if command_present "eza"; then
@@ -35,7 +33,7 @@ if command_present "eza"; then
   alias tree="eza --tree --icons"
   alias exa="eza"
 else
-  add_package "eza"
+  add_package_mise "eza" "eza"
 fi
 
 if command_present "fzf"; then
@@ -48,7 +46,7 @@ if command_present "fzf"; then
 
   source $DOTFILES_PATH/src/vendor/fzf-bindings.$SHELL_ENV
 else
-  add_package "fzf"
+  add_package_mise "fzf" "fzf"
 fi
 
 if command_present "bat"; then
@@ -60,17 +58,19 @@ if command_present "bat"; then
   export BAT_THEME="Nord"
   unset cmd
 else
-  add_package "bat"
+  add_package_mise "bat" "bat"
 fi
 
 if command_present "age"; then
   echo -n ""
 else
-  add_package "age"
+  add_package_mise "age" "age"
 fi
 
 if command_present "lazygit"; then
   alias lg=lazygit
+else
+  add_package_mise "lazygit" "" "lazygit" "lazygit"
 fi
 
 # ── Additional integrations ported from dotnix home.nix ──────────────────────
@@ -104,21 +104,13 @@ else
   add_package "trash-cli"
 fi
 
-if command_present "mise"; then
-  eval "$(mise activate $SHELL_ENV)"
-  add_brew_package "mise"
-  add_pacman_package "mise"
-fi
-
-if command_present "direnv"; then
-  eval "$(direnv hook $SHELL_ENV)"
-else
-  add_package "direnv"
-fi
-
-# try - fresh directories for every vibe (https://github.com/tobi/try-cli)
+# try - defer its Ruby-powered initialization until the first use.
 if command_present "try"; then
-  eval "$(try init ~/src/tries)"
+  try() {
+    unset -f try
+    eval "$(command try init "$HOME/src/tries")"
+    try "$@"
+  }
 fi
 
 # Linux clipboard aliases (macOS compatibility)

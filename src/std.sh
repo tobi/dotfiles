@@ -18,6 +18,14 @@ missing_cmds=()
 missing_apt_package=()
 missing_brew_package=()
 missing_pacman_package=()
+missing_mise_package=()
+
+# Detect mise once; package declarations reuse this instead of spawning checks.
+if command -v mise >/dev/null 2>&1; then
+  MISE_AVAILABLE=1
+else
+  MISE_AVAILABLE=0
+fi
 
 command_present() {
   # test if any of $* is present
@@ -38,6 +46,35 @@ add_package() {
   add_pacman_package "$package"
 }
 
+# Prefer mise, with optional native fallbacks:
+# add_package_mise <tool> [apt-package] [brew-package] [pacman-package]
+add_package_mise() {
+  local tool="$1"
+  local apt_package="${2:-}"
+  local brew_package="${3:-${2:-}}"
+  local pacman_package="${4:-${2:-}}"
+
+  if [[ "$MISE_AVAILABLE" == 1 ]]; then
+    missing_mise_package+=("$tool")
+    return
+  fi
+
+  case "$VENDOR" in
+    ubuntu|debian)
+      [[ -n "$apt_package" ]] && add_apt_package "$apt_package" || missing_mise_package+=("$tool")
+      ;;
+    apple)
+      [[ -n "$brew_package" ]] && add_brew_package "$brew_package" || missing_mise_package+=("$tool")
+      ;;
+    arch)
+      [[ -n "$pacman_package" ]] && add_pacman_package "$pacman_package" || missing_mise_package+=("$tool")
+      ;;
+    *)
+      missing_mise_package+=("$tool")
+      ;;
+  esac
+}
+
 add_apt_package() {
   local package="$1"
   missing_apt_package+=("$package")
@@ -56,18 +93,19 @@ add_pacman_package() {
 add_package_report() {
   case "$VENDOR" in
     apple)
-      [[ ${#missing_brew_package[@]} -eq 0 ]] && return 0
-      echo "* grab missing: '${missing_brew_package[*]}' with 'install_missing'"
+      [[ ${#missing_brew_package[@]} -eq 0 ]] || echo "* grab missing: '${missing_brew_package[*]}' with 'install_missing'"
       ;;
     arch)
-      [[ ${#missing_pacman_package[@]} -eq 0 ]] && return 0
-      echo "* grab missing: '${missing_pacman_package[*]}' with 'install_missing'"
+      [[ ${#missing_pacman_package[@]} -eq 0 ]] || echo "* grab missing: '${missing_pacman_package[*]}' with 'install_missing'"
       ;;
     ubuntu|debian)
-      [[ ${#missing_apt_package[@]} -eq 0 ]] && return 0
-      echo "* grab missing: '${missing_apt_package[*]}' with 'install_missing'"
+      [[ ${#missing_apt_package[@]} -eq 0 ]] || echo "* grab missing: '${missing_apt_package[*]}' with 'install_missing'"
       ;;
   esac
+
+  if [[ ${#missing_mise_package[@]} -gt 0 ]]; then
+    echo "* grab missing via mise: '${missing_mise_package[*]}' with 'mise use --global ...'"
+  fi
 }
 
 # Function to check for commands, adjusted for Bash
