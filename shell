@@ -42,6 +42,9 @@ add_path "/bin"
 add_path "/sbin"
 add_path "/opt/homebrew/bin"
 
+# SSH runs Bash startup files for remote commands such as rsync. Keep those
+# sessions silent so shell setup output cannot corrupt command protocols.
+[[ $- != *i* ]] && return 0
 
 bash "$DOTFILES_PATH/src/updates.sh"
 
