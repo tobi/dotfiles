@@ -20,8 +20,12 @@ if [[ ! -x "$mise_bin" ]] && ! command -v mise >/dev/null 2>&1; then
   exit 1
 fi
 
-# Prefer prebuilt Ruby binaries instead of compiling Ruby locally.
+# Require prebuilt Ruby binaries instead of falling back to local compilation.
+# The direct template avoids GitHub API lookups, which are often rate-limited on
+# fresh servers sharing a public IP.
 "$mise_bin" settings set ruby.compile false
+"$mise_bin" settings set ruby.precompiled_url \
+  'https://github.com/jdx/ruby/releases/download/{version}/ruby-{version}.{platform}.tar.gz'
 
 # Use mise-managed runtimes globally. `mise use` is idempotent and records the
 # choices in ~/.config/mise/config.toml.
@@ -29,8 +33,8 @@ fi
   age@latest ast-grep@latest btop@latest bun@latest duckdb@latest dust@latest \
   eza@latest envsubst@latest fastfetch@latest fd@latest ffmpeg@latest fzf@latest \
   gh@latest git-lfs@latest gitleaks@latest glow@latest gum@latest hyperfine@latest jq@latest \
-  lazygit@latest node@lts pnpm@latest rclone@latest rg@latest ruby@latest \
-  shellcheck@latest sqlite@latest tmux@latest tokei@latest uv@latest yazi@latest \
+  lazygit@latest node@lts pnpm@latest rclone@latest rg@latest ruby@4.0.6 \
+  shellcheck@latest sqlite@latest tmux@latest aqua:XAMPPRocky/tokei@latest uv@latest yazi@latest \
   zoxide@latest
 "$mise_bin" install
 
