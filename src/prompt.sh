@@ -2,11 +2,23 @@
 
 # Define the function to parse git branch and modifications
 git_branch_to_env() {
-  local git_status
-  git_status=$(git status --porcelain --branch 2>/dev/null)
-  GIT_BRANCH=$(echo "$git_status" | sed -n 's/^## //;s/\.\.\..*//p')
-  GIT_MODS=$(echo "$git_status" | grep -cv "^??")
-  export GIT_BRANCH GIT_MODS
+  local git_status line
+  local mods=0
+
+  git_status=$(git status --porcelain --branch 2>/dev/null) || {
+    GIT_BRANCH=""
+    GIT_MODS=0
+    return
+  }
+
+  line=${git_status%%$'\n'*}
+  GIT_BRANCH=${line#\#\# }
+  GIT_BRANCH=${GIT_BRANCH%%...*}
+
+  while IFS= read -r line; do
+    [[ $line == "## "* || $line == "??"* ]] || ((mods++))
+  done <<< "$git_status"
+  GIT_MODS=$mods
 }
 
 wrap() {
