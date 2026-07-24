@@ -34,7 +34,7 @@ fi
   eza@latest envsubst@latest fastfetch@latest fd@latest ffmpeg@latest fzf@latest \
   gh@latest git-lfs@latest gitleaks@latest glow@latest gum@latest hyperfine@latest jq@latest \
   lazygit@latest node@lts pnpm@latest rclone@latest rg@latest ruby@4.0.6 \
-  shellcheck@latest sqlite@latest tmux@latest aqua:XAMPPRocky/tokei@latest uv@latest yazi@latest \
+  shellcheck@latest sqlite@latest tmux@latest uv@latest yazi@latest \
   zoxide@latest
 "$mise_bin" install
 
