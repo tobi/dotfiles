@@ -105,7 +105,7 @@ else
 fi
 
 # Tools added outside the one-time bootstrap are ensured after updates.
-ensure_script_tool "herdr" "https://herdr.dev/install.sh"
+ensure_mise_tool "herdr" "herdr@latest"
 ensure_mise_tool "try" "gem:try-cli@latest"
 
 # Defer try's Ruby-powered shell integration until its first use.

@@ -52,7 +52,7 @@ assert_install() {
     exit
   '
 
-  test -x "$HOME/.local/bin/herdr"
+  "$mise" exec -- herdr --version
   "$mise" exec -- try --help >/dev/null
 }
 

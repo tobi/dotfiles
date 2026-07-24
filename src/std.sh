@@ -55,22 +55,6 @@ ensure_mise_tool() {
   eval "$(mise activate "$SHELL_ENV")"
 }
 
-ensure_script_tool() {
-  local command_name="$1" url="$2"
-  local installer
-  command -v "$command_name" >/dev/null 2>&1 && return 0
-
-  echo "* installing $command_name..."
-  installer=$(mktemp) || return
-  if curl -fsSL "$url" -o "$installer" && sh "$installer"; then
-    rm -f "$installer"
-    hash -r 2>/dev/null || true
-    return 0
-  fi
-  rm -f "$installer"
-  return 1
-}
-
 add_package() {
   local package="$1"
   add_apt_package "$package"
