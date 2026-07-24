@@ -1,5 +1,5 @@
 # Change to the dotfiles/config directory
-cd $HOME/dotfiles/config
+cd "$HOME/.local/share/dotfiles/config"
 
 # Loop through all files in the directory
 for file in *; do
