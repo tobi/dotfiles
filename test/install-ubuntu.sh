@@ -6,7 +6,7 @@ INSTALL_URL="https://raw.githubusercontent.com/tobi/dotfiles/main/install.sh"
 
 echo "Testing dotfiles installation on $IMAGE"
 
-docker run --rm \
+docker run --rm -i \
   -e INSTALL_URL="$INSTALL_URL" \
   "$IMAGE" bash -s <<'CONTAINER'
 set -euo pipefail
