@@ -53,7 +53,7 @@ assert_install() {
     type try
     type apply
     alias t
-    alias lz
+    alias lg
     exit
   '
 

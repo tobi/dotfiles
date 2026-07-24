@@ -69,7 +69,6 @@ fi
 
 if command_present "lazygit"; then
   alias lg=lazygit
-  alias lz=lazygit
 else
   add_package_mise "lazygit" "" "lazygit" "lazygit"
 fi
