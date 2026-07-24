@@ -29,6 +29,16 @@ add_path() {
   esac
 }
 
+path_first() {
+  local dir="$1" padded_path
+  [[ -d "$dir" ]] || return 0
+  padded_path=":$PATH:"
+  padded_path=${padded_path//":$dir:"/:}
+  padded_path=${padded_path#:}
+  padded_path=${padded_path%:}
+  PATH="$dir${padded_path:+:$padded_path}"
+}
+
 # Listed from lowest to highest priority because each entry is prepended.
 add_path "/opt/homebrew/bin"
 add_path "${HOME}/.cargo/bin"
@@ -64,6 +74,10 @@ source "$DOTFILES_PATH/src/packages.sh"
 if [[ -f "$HOME/.${SHELL_ENV}rc.local" ]]; then
   source "$HOME/.${SHELL_ENV}rc.local"
 fi
+
+# Mise shims win even when local overrides prepend other toolchains.
+path_first "$HOME/.local/share/mise/shims"
+export PATH
 
 if [[ "$DOTFILES_APPLY_NEEDED" == 1 ]]; then
   echo "* run '$DOTFILES_PATH/apply.sh' for new packages"
