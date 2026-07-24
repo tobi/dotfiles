@@ -1,1 +1,12 @@
 .DS_Store
+
+# This is a public repository. Keep all local sensitive material outside it.
+*.age
+*.key
+*.pem
+*.p12
+*.pfx
+.env
+.env.*
+secrets*
+**/secrets*
