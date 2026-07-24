@@ -11,7 +11,7 @@ alias la='ls -ah'
 alias lla='ls -lah'
 alias ..='cd ..'
 
-alias e="$EDITOR"
+alias e='$EDITOR'
 
 # Aliases ported from dotnix home.nix / shell.nix
 alias gs="git status"
@@ -57,17 +57,15 @@ apply() {
 }
 
 dotfiles-update() {
-  apply
+  apply "$@"
 }
 
 source "$DOTFILES_PATH/src/std.sh"
 source "$DOTFILES_PATH/src/history.sh"
 source "$DOTFILES_PATH/src/mise.sh"
 source "$DOTFILES_PATH/src/tools.sh"
-source "$DOTFILES_PATH/src/tools.trial.sh"
-source "$DOTFILES_PATH/src/packages.sh"
 
-[[ -f "$DOTFILES_PATH/src/vendor.$VENDOR.sh" ]] && source "$DOTFILES_PATH/src/vendor.$VENDOR.sh"
+[[ "$VENDOR" != "apple" ]] || source "$DOTFILES_PATH/src/vendor.apple.sh"
 
 # See if we need some local overrides (.zshrc.local, .bashrc.local)
 if [[ -f "$HOME/.${SHELL_ENV}rc.local" ]]; then

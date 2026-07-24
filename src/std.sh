@@ -14,7 +14,6 @@ if [[ -z "${VENDOR:-}" ]]; then
     export VENDOR="unknown"
   fi
 fi
-missing_cmds=()
 missing_apt_package=()
 missing_brew_package=()
 missing_pacman_package=()
@@ -27,14 +26,10 @@ else
 fi
 
 command_present() {
-  # test if any of $* is present
-  for i in "$@"; do
-    if command -v "$i" >/dev/null 2>&1; then
-      return 0
-    fi
+  local command_name
+  for command_name in "$@"; do
+    command -v "$command_name" >/dev/null 2>&1 && return 0
   done
-
-  missing_cmds+=$@
   return 1
 }
 
@@ -47,6 +42,7 @@ require_apply_tool() {
 
 add_package() {
   local package="$1"
+  DOTFILES_APPLY_NEEDED=1
   add_apt_package "$package"
   add_brew_package "$package"
   add_pacman_package "$package"
@@ -55,11 +51,11 @@ add_package() {
 # Prefer mise, with optional native fallbacks:
 # add_package_mise <tool> [apt-package] [brew-package] [pacman-package]
 add_package_mise() {
-  local tool="$1"
   local apt_package="${2:-}"
   local brew_package="${3:-${2:-}}"
   local pacman_package="${4:-${2:-}}"
 
+  DOTFILES_APPLY_NEEDED=1
   if [[ "$MISE_AVAILABLE" == 1 ]]; then
     return
   fi
@@ -94,33 +90,19 @@ add_pacman_package() {
   missing_pacman_package+=("$package")
 }
 
-# Function to append to a file
-append_to_file() {
-  local text="$1" file="$2"
-
-  if [ ! -f "$file" ]; then
-    touch "$file"
-  fi
-
-  if ! grep -qF -- "$text" "$file"; then
-    echo -e "$text" >>"$file"
-    return 0
-  fi
-  return 1
-}
-
 reload() {
-  source ~/.zshrc
+  source "$HOME/.${SHELL_ENV}rc"
 }
 
 venv() {
   if [[ ! -f .venv/bin/activate ]]; then
     echo " * no python env in $PWD/.venv, create it?"
-    read Y
+    read -r Y
     [[ $Y == "y" ]] && python3 -m venv .venv
   fi
 
   source .venv/bin/activate
   echo " * activated local env"
-  export VENV_ENV="$(basename $PWD)"
+  VENV_ENV="$(basename "$PWD")"
+  export VENV_ENV
 }

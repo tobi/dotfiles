@@ -1,32 +1,20 @@
-# Change to the dotfiles/config directory
+#!/usr/bin/env bash
+set -euo pipefail
+
 cd "$HOME/.local/share/dotfiles/config"
 
-# Loop through all files in the directory
 for file in *; do
-  realpath=$(realpath "$file")
-  basename=$(basename "$file")
-  # Skip if it's not a file
-  [ -f "$file" ] || continue
-  [ "$basename" == "link.sh" ] && continue
+  [[ -f "$file" && "$file" != "link.sh" ]] || continue
 
-  ext=$(echo "$file" | awk -F. '{print $NF}')
-  #basename_without_ext=$(echo "$basename" | sed 's/\.'$ext'//g')
+  source_path=$(realpath "$file")
+  destination="$HOME/$(printf '%s' "$file" | sed 's|\.|/|g; s|_|.|g')"
 
-  # Replace:
-  #   .  -> /
-  #   _  -> .
-
-  destination=$HOME/$(echo "$basename" | sed 's/\./\//g' | sed 's/_/./g')
-
-  if [ "$1" != "-f" ] && [ -f "$destination" ]; then
+  if [[ "${1:-}" != "-f" && -e "$destination" ]]; then
     echo "File $destination already exists, skipping... (or use -f)"
     continue
   fi
 
-  echo "linking $destination to ./$file"
-
-  # link the file
-  ln -nfs "$realpath" "$destination"
-
-  echo " [OK]"
+  mkdir -p "$(dirname "$destination")"
+  echo "linking $destination to $source_path"
+  ln -nfs "$source_path" "$destination"
 done

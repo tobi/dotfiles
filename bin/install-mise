@@ -36,7 +36,7 @@ fi
 # Use mise-managed runtimes globally. `mise use` is idempotent and records the
 # choices in ~/.config/mise/config.toml.
 "$mise_bin" use --global \
-  age@latest ast-grep@latest btop@latest bun@latest duckdb@latest dust@latest \
+  age@latest ast-grep@latest bat@latest btop@latest bun@latest duckdb@latest dust@latest \
   eza@latest envsubst@latest fastfetch@latest fd@latest ffmpeg@latest fzf@latest \
   gh@latest git-lfs@latest gitleaks@latest glow@latest gum@latest herdr@latest hyperfine@latest jq@latest \
   lazygit@latest node@lts pnpm@latest rclone@latest rg@latest ruby@4.0.6 \

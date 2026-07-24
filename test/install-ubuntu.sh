@@ -46,6 +46,7 @@ assert_install() {
   # Confirm apply installed evolving tools and the shell activates runtimes.
   bash --noprofile --rcfile "$HOME/.bashrc" -i -c '
     set -e
+    test "$DOTFILES_APPLY_NEEDED" -eq 0
     test "${PATH%%:*}" = "$HOME/.local/share/mise/shims"
     command -v node
     command -v ruby

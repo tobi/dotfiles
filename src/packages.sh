@@ -45,6 +45,10 @@ add_pacman_package "poppler"
 add_package_mise "tmux" "tmux"
 
 # ── Nice-to-have utilities ────────────────────────────────────────────
+add_package "grc"
+add_apt_package "trash-cli"
+add_brew_package "trash"
+add_pacman_package "trash-cli"
 add_package_mise "fastfetch" "" "fastfetch" "fastfetch"
 add_package_mise "gum" "" "gum" "gum"
 add_package_mise "rclone" "rclone"

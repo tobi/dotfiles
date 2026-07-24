@@ -6,21 +6,16 @@ else
 fi
 
 if command_present "zoxide"; then
-  eval "$(zoxide init $SHELL_ENV)"
+  eval "$(zoxide init "$SHELL_ENV")"
 else
   add_package_mise "zoxide" "zoxide"
 fi
 
-if command_present "fdfind"; then
-  alias fd="fdfind"
-fi
-
-if command_present "batcat"; then
-  alias bat="batcat"
-fi
-
 if command_present "fd"; then
   export FZF_ALT_C_COMMAND='fd --type directory'
+elif command_present "fdfind"; then
+  alias fd="fdfind"
+  export FZF_ALT_C_COMMAND='fdfind --type directory'
 else
   add_package_mise "fd" "fd-find" "fd" "fd"
 fi
@@ -44,19 +39,18 @@ if command_present "fzf"; then
   export FZF_CTRL_T_OPTS="--preview 'bat --color=always --style=numbers --line-range=:300 {}'"
   export FZF_ALT_C_OPTS="--preview 'eza --tree --color=always --icons --level=2 {} | head -100'"
 
-  source $DOTFILES_PATH/src/vendor/fzf-bindings.$SHELL_ENV
+  source "$DOTFILES_PATH/src/vendor/fzf-bindings.$SHELL_ENV"
 else
   add_package_mise "fzf" "fzf"
 fi
 
 if command_present "bat"; then
-  cmd="$(which bat)"
-  [[ ! $! -eq 0 ]] && cmd="$(which batcat)"
-
-  alias bat="$cmd"
-  alias less="$cmd"
+  alias less="bat"
   export BAT_THEME="Nord"
-  unset cmd
+elif command_present "batcat"; then
+  alias bat="batcat"
+  alias less="batcat"
+  export BAT_THEME="Nord"
 else
   add_package_mise "bat" "bat"
 fi
@@ -95,13 +89,13 @@ if command_present "grc"; then
   alias ifconfig="grc --colour=auto ifconfig"
   alias netstat="grc --colour=auto netstat"
 else
-  add_package "grc"
+  require_apply_tool "grc"
 fi
 
 if command_present "trash-put"; then
   alias rm="trash-put"
 else
-  add_package "trash-cli"
+  require_apply_tool "trash-put"
 fi
 
 # Tools added by newer dotfiles are reconciled by apply.sh.
