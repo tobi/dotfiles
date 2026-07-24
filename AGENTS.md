@@ -24,8 +24,10 @@ These are Tobi's bespoke dotfiles. Optimize for his machines and workflow rather
 - The supported installation command is always:
   `curl https://raw.githubusercontent.com/tobi/dotfiles/main/install.sh | bash`
 - Dotfiles always live at `~/.local/share/dotfiles`; do not introduce another checkout location.
-- `install.sh` is the one obvious entry point for a fresh machine and migrates the legacy `~/dotfiles` location.
-- Installation and shell setup must be idempotent.
+- `install.sh` is the thin entry point for a fresh machine and migrates the legacy `~/dotfiles` location.
+- `apply.sh` is the idempotent reconciler for existing machines. It fetches Git updates, updates native packages and Mise tools, and reapplies configuration.
+- Shell startup may cheaply detect drift and tell Tobi to run `apply.sh`; it must not perform package or network updates itself.
+- Installation, apply, and shell setup must be idempotent.
 - If Zsh is installed, make it the login shell during installation; otherwise Bash must remain fully supported.
 - Never require Zsh for basic operation.
 - Put `~/.local/bin` on `PATH` early and exactly once.
@@ -47,7 +49,7 @@ These are Tobi's bespoke dotfiles. Optimize for his machines and workflow rather
 
 - Develop a very small declarative DSL describing the desired system, such as `add_package` and `add_package_mise`.
 - Keep DSL operations predictable, idempotent, and easy to inspect.
-- Separate declaration from installation: shell startup may report missing tools, but should not perform expensive installs.
+- Separate declaration from installation: shell startup may report missing tools, while `apply.sh` performs installation and updates.
 - Prefer one canonical declaration for each tool and one preferred installation source.
 - Avoid abstractions until they remove real repetition or complexity.
 - Favor short shell scripts and conventional files over frameworks.

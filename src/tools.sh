@@ -69,6 +69,7 @@ fi
 
 if command_present "lazygit"; then
   alias lg=lazygit
+  alias lz=lazygit
 else
   add_package_mise "lazygit" "" "lazygit" "lazygit"
 fi
@@ -104,16 +105,18 @@ else
   add_package "trash-cli"
 fi
 
-# Tools added outside the one-time bootstrap are ensured after updates.
-ensure_mise_tool "herdr" "herdr@latest"
-ensure_mise_tool "try" "gem:try-cli@latest"
+# Tools added by newer dotfiles are reconciled by apply.sh.
+require_apply_tool "herdr"
+require_apply_tool "try"
 
 # Defer try's Ruby-powered shell integration until its first use.
-try() {
-  unset -f try
-  eval "$(command try init "$HOME/src/tries")"
-  try "$@"
-}
+if command -v try >/dev/null 2>&1; then
+  try() {
+    unset -f try
+    eval "$(command try init "$HOME/src/tries")"
+    try "$@"
+  }
+fi
 
 # Linux clipboard aliases (macOS compatibility)
 if [[ "$SHELL_ENV" == "zsh" || "$SHELL_ENV" == "bash" ]] && command_present "wl-copy"; then

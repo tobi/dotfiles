@@ -1,7 +1,6 @@
 # Package recommendations ported from dotnix home.nix.
-# Tools that need shell integration are handled in tools.sh; this file
-# registers the remaining useful CLI tools so add_package_report can
-# suggest installs for anything missing.
+# Tools that need shell integration are handled in tools.sh. apply.sh sources
+# this declarative list when reconciling native system packages.
 
 # Shell — zsh is optional (needed for right-prompt and richer keybindings);
 # the dotfiles work fully in bash. Install only if you want rprompt.
@@ -22,7 +21,8 @@ add_package "htop"
 add_package_mise "btop" "btop"
 add_package "psmisc"
 add_package "mtr"
-add_package "procs"
+add_brew_package "procs"
+add_pacman_package "procs"
 add_package "pv"
 add_package_mise "yazi" "" "yazi" "yazi"
 

@@ -20,38 +20,34 @@ alias t="try"
 alias c="pbcopy"
 alias v="pbpaste"
 
-# Only allow unique entries in the PATH variable
-# This function updates PATH by removing duplicates
+# Prepend deliberate user/tool paths without rebuilding the OS-provided PATH.
 add_path() {
-  if ! [[ ":$PATH:" == *":$1:"* && -d "$1" ]]; then
-    export PATH="$1:$PATH"
-  fi
+  [[ -d "$1" ]] || return 0
+  case ":$PATH:" in
+    *":$1:"*) ;;
+    *) PATH="$1:$PATH" ;;
+  esac
 }
 
-# Adding paths without creating duplicates
-add_path "${HOME}/bin"
-add_path "${HOME}/.bin"
-add_path "${HOME}/.local/bin"
-add_path "${HOME}/.cargo/bin"
-add_path "${DOTFILES_PATH}/bin"
-add_path "/usr/local/bin"
-add_path "/usr/local/bin"
-add_path "/usr/bin"
-add_path "/usr/sbin"
-add_path "/bin"
-add_path "/sbin"
+# Listed from lowest to highest priority because each entry is prepended.
 add_path "/opt/homebrew/bin"
+add_path "${HOME}/.cargo/bin"
+add_path "${HOME}/.bin"
+add_path "${HOME}/bin"
+add_path "${DOTFILES_PATH}/bin"
+add_path "${HOME}/.local/bin"
+export PATH
 
 # SSH runs Bash startup files for remote commands such as rsync. Keep those
 # sessions silent so shell setup output cannot corrupt command protocols.
 [[ $- != *i* ]] && return 0
 
-dotfiles-update() {
-  bash "$DOTFILES_PATH/src/updates.sh"
+apply() {
+  "$DOTFILES_PATH/apply.sh" "$@"
 }
 
-dotfiles-doctor() {
-  add_package_report
+dotfiles-update() {
+  apply
 }
 
 source "$DOTFILES_PATH/src/std.sh"
@@ -67,6 +63,10 @@ source "$DOTFILES_PATH/src/packages.sh"
 # See if we need some local overrides (.zshrc.local, .bashrc.local)
 if [[ -f "$HOME/.${SHELL_ENV}rc.local" ]]; then
   source "$HOME/.${SHELL_ENV}rc.local"
+fi
+
+if [[ "$DOTFILES_APPLY_NEEDED" == 1 ]]; then
+  echo "* run '$DOTFILES_PATH/apply.sh' for new packages"
 fi
 
 # Return true to indicate successful sourcing of the file

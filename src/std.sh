@@ -18,7 +18,6 @@ missing_cmds=()
 missing_apt_package=()
 missing_brew_package=()
 missing_pacman_package=()
-missing_mise_package=()
 
 # Detect mise once; package declarations reuse this instead of spawning checks.
 if command -v mise >/dev/null 2>&1; then
@@ -39,20 +38,11 @@ command_present() {
   return 1
 }
 
-# Ensure tools introduced by a dotfiles update appear on the next interactive
-# shell. The normal startup path is only a cheap command lookup.
-ensure_mise_tool() {
-  local command_name="$1" tool="$2"
-  command -v "$command_name" >/dev/null 2>&1 && return 0
-
-  if ! command -v mise >/dev/null 2>&1; then
-    echo "* cannot install $command_name until mise is installed"
-    return 1
-  fi
-
-  echo "* installing $command_name via mise..."
-  mise use --global "$tool" || return
-  eval "$(mise activate "$SHELL_ENV")"
+# Mark the machine for reconciliation when a tool introduced by a dotfiles
+# update is absent. apply.sh performs all network and package-manager work.
+DOTFILES_APPLY_NEEDED=0
+require_apply_tool() {
+  command -v "$1" >/dev/null 2>&1 || DOTFILES_APPLY_NEEDED=1
 }
 
 add_package() {
@@ -71,22 +61,20 @@ add_package_mise() {
   local pacman_package="${4:-${2:-}}"
 
   if [[ "$MISE_AVAILABLE" == 1 ]]; then
-    missing_mise_package+=("$tool")
     return
   fi
 
   case "$VENDOR" in
     ubuntu|debian)
-      [[ -n "$apt_package" ]] && add_apt_package "$apt_package" || missing_mise_package+=("$tool")
+      [[ -z "$apt_package" ]] || add_apt_package "$apt_package"
       ;;
     apple)
-      [[ -n "$brew_package" ]] && add_brew_package "$brew_package" || missing_mise_package+=("$tool")
+      [[ -z "$brew_package" ]] || add_brew_package "$brew_package"
       ;;
     arch)
-      [[ -n "$pacman_package" ]] && add_pacman_package "$pacman_package" || missing_mise_package+=("$tool")
+      [[ -z "$pacman_package" ]] || add_pacman_package "$pacman_package"
       ;;
     *)
-      missing_mise_package+=("$tool")
       ;;
   esac
 }
@@ -104,74 +92,6 @@ add_brew_package() {
 add_pacman_package() {
   local package="$1"
   missing_pacman_package+=("$package")
-}
-
-add_package_report() {
-  case "$VENDOR" in
-    apple)
-      [[ ${#missing_brew_package[@]} -eq 0 ]] || echo "* grab missing: '${missing_brew_package[*]}' with 'install_missing'"
-      ;;
-    arch)
-      [[ ${#missing_pacman_package[@]} -eq 0 ]] || echo "* grab missing: '${missing_pacman_package[*]}' with 'install_missing'"
-      ;;
-    ubuntu|debian)
-      [[ ${#missing_apt_package[@]} -eq 0 ]] || echo "* grab missing: '${missing_apt_package[*]}' with 'install_missing'"
-      ;;
-  esac
-
-  if [[ ${#missing_mise_package[@]} -gt 0 ]]; then
-    echo "* grab missing via mise: '${missing_mise_package[*]}' with 'mise use --global ...'"
-  fi
-}
-
-# Function to check for commands, adjusted for Bash
-check_cmd_or_install() {
-  local cmd="$1"
-  local apt_package="${2:-$cmd}"
-
-  if command -v "$cmd" >/dev/null 2>&1; then
-    return 0
-  else
-    missing_cmds+=("$cmd")
-    missing_package+=("$apt_package")
-    return 1
-  fi
-}
-
-# Function to check for scripts, adjusted for Bash
-sh_cmd() {
-  local cmd="$1"
-  local script="$2"
-
-  if command -v "$cmd" >/dev/null 2>&1; then
-    return 0
-  else
-    missing_cmds+=("$cmd")
-    missing_scripts+=("$script")
-    return 1
-  fi
-}
-
-# Function to install missing commands, adjusted for Bash loop syntax
-install_missing() {
-
-  if [[ "$VENDOR" == "ubuntu" || "$VENDOR" == "debian" ]]; then
-    sudo apt update
-    sudo apt install -y "${missing_apt_package[@]}"
-  fi
-
-  if [[ "$VENDOR" == "arch" ]]; then
-    # Install per-package: pacman aborts the whole batch on one bad name,
-    # unlike apt/brew which skip missing targets.
-    for pkg in "${missing_pacman_package[@]}"; do
-      sudo pacman -S --needed --noconfirm "$pkg" || echo "  skipped $pkg (not found or AUR-only)"
-    done
-  fi
-
-  if [[ "$VENDOR" == "apple" ]]; then
-    brew install "${missing_brew_package[@]}"
-  fi
-
 }
 
 # Function to append to a file

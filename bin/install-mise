@@ -2,11 +2,13 @@
 set -euo pipefail
 
 # Install mise without requiring a distro-specific package.
+mise_was_present=1
 if command -v mise >/dev/null 2>&1; then
   mise_bin=$(command -v mise)
 elif [[ -x "$HOME/.local/bin/mise" ]]; then
   mise_bin="$HOME/.local/bin/mise"
 else
+  mise_was_present=0
   command -v curl >/dev/null 2>&1 || {
     printf 'curl is required to install mise\n' >&2
     exit 1
@@ -18,6 +20,10 @@ fi
 if [[ ! -x "$mise_bin" ]] && ! command -v mise >/dev/null 2>&1; then
   printf 'mise installation did not produce an executable\n' >&2
   exit 1
+fi
+
+if [[ "$mise_was_present" == 1 ]]; then
+  "$mise_bin" self-update --yes || echo "* mise self-update unavailable; continuing"
 fi
 
 # Require prebuilt Ruby binaries instead of falling back to local compilation.
@@ -32,11 +38,13 @@ fi
 "$mise_bin" use --global \
   age@latest ast-grep@latest btop@latest bun@latest duckdb@latest dust@latest \
   eza@latest envsubst@latest fastfetch@latest fd@latest ffmpeg@latest fzf@latest \
-  gh@latest git-lfs@latest gitleaks@latest glow@latest gum@latest hyperfine@latest jq@latest \
+  gh@latest git-lfs@latest gitleaks@latest glow@latest gum@latest herdr@latest hyperfine@latest jq@latest \
   lazygit@latest node@lts pnpm@latest rclone@latest rg@latest ruby@4.0.6 \
   shellcheck@latest sqlite@latest tmux@latest uv@latest yazi@latest \
   zoxide@latest
 
+# try-cli depends on the mise-managed Ruby installed above.
+"$mise_bin" use --global gem:try-cli@latest
 "$mise_bin" install
 
 printf '\nmise is installed. Start a new shell (or run: eval "$(mise activate bash)")\n'

@@ -22,6 +22,10 @@ run_installer() {
   curl -fsSL "$INSTALL_URL" | bash
 }
 
+run_apply() {
+  "$HOME/.local/share/dotfiles/apply.sh"
+}
+
 assert_install() {
   local dotfiles="$HOME/.local/share/dotfiles"
   local mise="$HOME/.local/bin/mise"
@@ -38,8 +42,7 @@ assert_install() {
   "$mise" exec -- ruby --version
   "$mise" exec -- uv --version
 
-  # The first interactive shell ensures tools introduced after bootstrap and
-  # activates mise-managed runtimes.
+  # Confirm apply installed evolving tools and the shell activates runtimes.
   bash --noprofile --rcfile "$HOME/.bashrc" -i -c '
     set -e
     command -v node
@@ -48,7 +51,9 @@ assert_install() {
     command -v herdr
     command try --help >/dev/null
     type try
+    type apply
     alias t
+    alias lz
     exit
   '
 
@@ -59,9 +64,9 @@ assert_install() {
 run_installer
 assert_install
 
-# A second run must preserve a working installation.
+# Re-applying must update and preserve a working installation.
 key_lines_before=$(wc -l < "$HOME/.ssh/authorized_keys")
-run_installer
+run_apply
 assert_install
 key_lines_after=$(wc -l < "$HOME/.ssh/authorized_keys")
 test "$key_lines_before" -eq "$key_lines_after"
