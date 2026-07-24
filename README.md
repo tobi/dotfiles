@@ -14,5 +14,5 @@ Reconcile an existing machine—including Git, system package, Mise, and tool
 updates—with:
 
 ```bash
-~/.local/share/dotfiles/apply.sh
+apply
 ```

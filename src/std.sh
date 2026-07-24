@@ -34,7 +34,7 @@ command_present() {
 }
 
 # Mark the machine for reconciliation when a tool introduced by a dotfiles
-# update is absent. apply.sh performs all network and package-manager work.
+# update is absent. apply performs all network and package-manager work.
 DOTFILES_APPLY_NEEDED=0
 require_apply_tool() {
   command -v "$1" >/dev/null 2>&1 || DOTFILES_APPLY_NEEDED=1

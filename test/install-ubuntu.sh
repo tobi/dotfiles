@@ -23,7 +23,7 @@ run_installer() {
 }
 
 run_apply() {
-  "$HOME/.local/share/dotfiles/apply.sh"
+  "$HOME/.local/share/dotfiles/bin/apply"
 }
 
 assert_install() {

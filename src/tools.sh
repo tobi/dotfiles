@@ -98,7 +98,7 @@ else
   require_apply_tool "trash-put"
 fi
 
-# Tools added by newer dotfiles are reconciled by apply.sh.
+# Tools added by newer dotfiles are reconciled by apply.
 require_apply_tool "herdr"
 require_apply_tool "starship"
 require_apply_tool "try"

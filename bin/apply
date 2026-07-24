@@ -8,7 +8,7 @@ export PATH="$HOME/.local/bin:$PATH"
 if [[ "${1:-}" != "--skip-pull" ]]; then
   echo "updating dotfiles..."
   git -C "$DOTFILES_PATH" pull --rebase
-  exec "$DOTFILES_PATH/apply.sh" --skip-pull
+  exec "$DOTFILES_PATH/bin/apply" --skip-pull
 fi
 
 run_as_root() {

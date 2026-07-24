@@ -26,4 +26,4 @@ else
   git clone https://github.com/tobi/dotfiles "$DOTFILES_PATH"
 fi
 
-exec "$DOTFILES_PATH/apply.sh"
+exec "$DOTFILES_PATH/bin/apply"

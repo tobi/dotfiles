@@ -1,5 +1,5 @@
 # Package recommendations ported from dotnix home.nix.
-# Tools that need shell integration are handled in tools.sh. apply.sh sources
+# Tools that need shell integration are handled in tools.sh. apply sources
 # this declarative list when reconciling native system packages.
 
 # Shell — zsh is optional (needed for right-prompt and richer keybindings);
