@@ -28,6 +28,7 @@ assert_install() {
 
   test -d "$dotfiles/.git"
   test -x "$mise"
+  test -x "$HOME/.local/bin/herdr"
   test -L "$HOME/.bashrc"
   grep -qF "source \"$dotfiles/shell\"" "$HOME/.zshrc"
 
@@ -37,6 +38,7 @@ assert_install() {
   "$mise" exec -- node --version
   "$mise" exec -- ruby --version
   "$mise" exec -- uv --version
+  "$mise" exec -- try --help >/dev/null
 
   # Confirm the generated Bash entrypoint activates mise-managed runtimes.
   bash --noprofile --rcfile "$HOME/.bashrc" -i -c '
@@ -44,6 +46,8 @@ assert_install() {
     command -v node
     command -v ruby
     command -v uv
+    type try
+    alias t
     exit
   '
 }

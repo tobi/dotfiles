@@ -111,6 +111,9 @@ if command_present "try"; then
     eval "$(command try init "$HOME/src/tries")"
     try "$@"
   }
+else
+  # RubyGem everywhere; Arch may use the native try-cli AUR package instead.
+  add_package_mise "gem:try-cli" "" "" "try-cli"
 fi
 
 # Linux clipboard aliases (macOS compatibility)
