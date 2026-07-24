@@ -106,6 +106,7 @@ fi
 
 # Tools added by newer dotfiles are reconciled by apply.sh.
 require_apply_tool "herdr"
+require_apply_tool "starship"
 require_apply_tool "try"
 
 # Defer try's Ruby-powered shell integration until its first use.
@@ -115,6 +116,10 @@ if command -v try >/dev/null 2>&1; then
     eval "$(command try init "$HOME/src/tries")"
     try "$@"
   }
+fi
+
+if command -v starship >/dev/null 2>&1; then
+  eval "$(starship init "$SHELL_ENV")"
 fi
 
 # Linux clipboard aliases (macOS compatibility)

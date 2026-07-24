@@ -63,7 +63,6 @@ dotfiles-update() {
 source "$DOTFILES_PATH/src/std.sh"
 source "$DOTFILES_PATH/src/history.sh"
 source "$DOTFILES_PATH/src/mise.sh"
-source "$DOTFILES_PATH/src/prompt.sh"
 source "$DOTFILES_PATH/src/tools.sh"
 source "$DOTFILES_PATH/src/tools.trial.sh"
 source "$DOTFILES_PATH/src/packages.sh"

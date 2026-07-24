@@ -57,6 +57,10 @@ esac
 echo "configuring git..."
 bash "$DOTFILES_PATH/src/git.sh"
 
+echo "linking configuration..."
+mkdir -p "$HOME/.config"
+ln -nfs "$DOTFILES_PATH/config/_config.starship_toml" "$HOME/.config/starship.toml"
+
 echo "installing shell entrypoints..."
 chmod +w "$HOME/.zshrc" 2>/dev/null || true
 printf '%s\n' "# Dotfiles" "source \"$DOTFILES_PATH/shell\"" >"$HOME/.zshrc"

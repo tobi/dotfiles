@@ -33,6 +33,7 @@ assert_install() {
   test -d "$dotfiles/.git"
   test -x "$mise"
   test -L "$HOME/.bashrc"
+  test -L "$HOME/.config/starship.toml"
   grep -qF "source \"$dotfiles/shell\"" "$HOME/.zshrc"
 
   test "$(git config --global user.name)" = "Tobi Lutke"
@@ -50,6 +51,7 @@ assert_install() {
     command -v ruby
     command -v uv
     command -v herdr
+    command -v starship
     command try --help >/dev/null
     type try
     type apply
@@ -59,6 +61,7 @@ assert_install() {
   '
 
   "$mise" exec -- herdr --version
+  "$mise" exec -- starship --version
   "$mise" exec -- try --help >/dev/null
 }
 

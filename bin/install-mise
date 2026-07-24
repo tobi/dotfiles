@@ -40,7 +40,7 @@ fi
   eza@latest envsubst@latest fastfetch@latest fd@latest ffmpeg@latest fzf@latest \
   gh@latest git-lfs@latest gitleaks@latest glow@latest gum@latest herdr@latest hyperfine@latest jq@latest \
   lazygit@latest node@lts pnpm@latest rclone@latest rg@latest ruby@4.0.6 \
-  shellcheck@latest sqlite@latest tmux@latest uv@latest yazi@latest \
+  shellcheck@latest sqlite@latest starship@latest tmux@latest uv@latest yazi@latest \
   zoxide@latest
 
 # try-cli depends on the mise-managed Ruby installed above.
