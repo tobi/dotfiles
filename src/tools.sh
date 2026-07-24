@@ -104,17 +104,16 @@ else
   add_package "trash-cli"
 fi
 
-# try - defer its Ruby-powered initialization until the first use.
-if command_present "try"; then
-  try() {
-    unset -f try
-    eval "$(command try init "$HOME/src/tries")"
-    try "$@"
-  }
-else
-  # RubyGem everywhere; Arch may use the native try-cli AUR package instead.
-  add_package_mise "gem:try-cli" "" "" "try-cli"
-fi
+# Tools added outside the one-time bootstrap are ensured after updates.
+ensure_script_tool "herdr" "https://herdr.dev/install.sh"
+ensure_mise_tool "try" "gem:try-cli@latest"
+
+# Defer try's Ruby-powered shell integration until its first use.
+try() {
+  unset -f try
+  eval "$(command try init "$HOME/src/tries")"
+  try "$@"
+}
 
 # Linux clipboard aliases (macOS compatibility)
 if [[ "$SHELL_ENV" == "zsh" || "$SHELL_ENV" == "bash" ]] && command_present "wl-copy"; then

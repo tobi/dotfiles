@@ -37,8 +37,6 @@ fi
   shellcheck@latest sqlite@latest tmux@latest uv@latest yazi@latest \
   zoxide@latest
 
-# try-cli is a RubyGem, so install it only after mise-managed Ruby is ready.
-"$mise_bin" use --global gem:try-cli@latest
 "$mise_bin" install
 
 printf '\nmise is installed. Start a new shell (or run: eval "$(mise activate bash)")\n'

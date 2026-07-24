@@ -39,6 +39,38 @@ command_present() {
   return 1
 }
 
+# Ensure tools introduced by a dotfiles update appear on the next interactive
+# shell. The normal startup path is only a cheap command lookup.
+ensure_mise_tool() {
+  local command_name="$1" tool="$2"
+  command -v "$command_name" >/dev/null 2>&1 && return 0
+
+  if ! command -v mise >/dev/null 2>&1; then
+    echo "* cannot install $command_name until mise is installed"
+    return 1
+  fi
+
+  echo "* installing $command_name via mise..."
+  mise use --global "$tool" || return
+  eval "$(mise activate "$SHELL_ENV")"
+}
+
+ensure_script_tool() {
+  local command_name="$1" url="$2"
+  local installer
+  command -v "$command_name" >/dev/null 2>&1 && return 0
+
+  echo "* installing $command_name..."
+  installer=$(mktemp) || return
+  if curl -fsSL "$url" -o "$installer" && sh "$installer"; then
+    rm -f "$installer"
+    hash -r 2>/dev/null || true
+    return 0
+  fi
+  rm -f "$installer"
+  return 1
+}
+
 add_package() {
   local package="$1"
   add_apt_package "$package"

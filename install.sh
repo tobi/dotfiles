@@ -36,9 +36,6 @@ cd "$DOTFILES_PATH"
 echo "installing mise and managed tools..."
 "$DOTFILES_PATH/bin/install-mise"
 
-echo "installing herdr..."
-curl -fsSL https://herdr.dev/install.sh | sh
-
 echo "configuring git..."
 bash "$DOTFILES_PATH/src/git.sh"
 
