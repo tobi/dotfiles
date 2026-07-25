@@ -68,10 +68,5 @@ touch "$HOME/.zshrc.local"
 chmod -w "$HOME/.zshrc"
 ln -nfs "$HOME/.zshrc" "$HOME/.bashrc"
 
-if command -v zsh >/dev/null 2>&1 && [[ "${SHELL:-}" != "$(command -v zsh)" ]]; then
-  echo "setting zsh as the login shell..."
-  chsh -s "$(command -v zsh)" || echo "could not change login shell; run: chsh -s $(command -v zsh)"
-fi
-
 echo
 echo "dotfiles applied"

@@ -28,8 +28,8 @@ These are Tobi's bespoke dotfiles. Optimize for his machines and workflow rather
 - `apply` (`bin/apply`) is the idempotent reconciler for existing machines. It fetches Git updates, updates native packages and Mise tools, and reapplies configuration.
 - Shell startup may cheaply detect drift and tell Tobi to run `apply`; it must not perform package or network updates itself.
 - Installation, apply, and shell setup must be idempotent.
-- If Zsh is installed, make it the login shell during installation; otherwise Bash must remain fully supported.
-- Never require Zsh for basic operation.
+- Never change the user's login shell automatically.
+- Never require Zsh for basic operation; Bash and Zsh must both remain fully supported.
 - Put `~/.local/bin` on `PATH` early and exactly once.
 - Install mise itself when needed and provide a reliable path to its binary.
 - Use mise as the preferred source for runtimes and portable developer tools, including Node, Ruby, and uv.
