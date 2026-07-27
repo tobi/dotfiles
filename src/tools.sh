@@ -92,12 +92,6 @@ else
   require_apply_tool "grc"
 fi
 
-if command_present "trash-put"; then
-  alias rm="trash-put"
-else
-  require_apply_tool "trash-put"
-fi
-
 # Tools added by newer dotfiles are reconciled by apply.
 require_apply_tool "herdr"
 require_apply_tool "starship"

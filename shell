@@ -56,17 +56,37 @@ dotfiles-update() {
   command apply "$@"
 }
 
+if [[ -n "${ZSH_VERSION:-}" ]]; then
+  export SHELL_ENV=zsh
+else
+  export SHELL_ENV=bash
+fi
+
 source "$DOTFILES_PATH/src/std.sh"
-source "$DOTFILES_PATH/src/history.sh"
 source "$DOTFILES_PATH/src/mise.sh"
+
+load_local_overrides() {
+  [[ -f "$HOME/.${SHELL_ENV}rc.local" ]] && source "$HOME/.${SHELL_ENV}rc.local"
+}
+
+# Keep dumb terminals limited to paths, Mise, and safe deletion.
+if command_present "trash-put"; then
+  alias rm="trash-put"
+else
+  require_apply_tool "trash-put"
+fi
+if [[ "${TERM:-}" == dumb ]]; then
+  load_local_overrides
+  return 0
+fi
+
+source "$DOTFILES_PATH/src/history.sh"
 source "$DOTFILES_PATH/src/tools.sh"
 
 [[ "$VENDOR" != "apple" ]] || source "$DOTFILES_PATH/src/vendor.apple.sh"
 
 # See if we need some local overrides (.zshrc.local, .bashrc.local)
-if [[ -f "$HOME/.${SHELL_ENV}rc.local" ]]; then
-  source "$HOME/.${SHELL_ENV}rc.local"
-fi
+load_local_overrides
 
 # Mise shims win even when local overrides prepend other toolchains.
 path_first "$HOME/.local/share/mise/shims"
