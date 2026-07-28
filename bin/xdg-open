@@ -8,6 +8,16 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   exec /usr/bin/open "$@"
 fi
 
+# This shim is for remote SSH hosts. On an Omarchy graphical desktop, use
+# Omarchy's detached launcher instead of printing remote-browser instructions
+# to an arbitrary login TTY selected by `who`. Calling /usr/bin/xdg-open here
+# is not enough: its generic backend starts Chrome in the foreground and can
+# remain attached for the browser's entire lifetime.
+if [[ -z "${SSH_CONNECTION:-}${SSH_CLIENT:-}${SSH_TTY:-}" ]] \
+    && [[ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]]; then
+  exec omarchy-launch-browser "$@"
+fi
+
 if [[ $# -eq 0 ]]; then
   echo "usage: xdg-open URL" >&2
   exit 2
