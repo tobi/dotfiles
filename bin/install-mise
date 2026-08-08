@@ -38,8 +38,11 @@ fi
 # resolve `latest`. Updates happen explicitly through `apply -u`.
 "$mise_bin" settings set pin true
 
-# Avoid brand-new releases until they have had a week of exposure.
+# Avoid brand-new releases until they have had a week of exposure. Our own
+# rapidly iterated tools are exempt from the age gate.
 "$mise_bin" settings set minimum_release_age 7d
+"$mise_bin" settings set minimum_release_age_excludes \
+  'github:tobi/s,gem:try-cli'
 
 # Require prebuilt Ruby binaries instead of falling back to local compilation.
 "$mise_bin" settings set ruby.compile false
