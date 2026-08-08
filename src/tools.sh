@@ -76,10 +76,6 @@ if command_present "nvim"; then
   alias n="nvim"
 fi
 
-if command_present "claude"; then
-  alias claude="claude --dangerously-skip-permissions"
-fi
-
 if command_present "grc"; then
   alias ping="grc --colour=auto ping"
   alias traceroute="grc --colour=auto traceroute"
