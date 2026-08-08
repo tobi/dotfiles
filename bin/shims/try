@@ -1,12 +1,10 @@
 #!/bin/bash
 set -e
 
-if ! ruby_version=$(mise latest --installed "ruby@4.0.6" 2>/dev/null); then
-  MISE_MINIMUM_RELEASE_AGE=0 mise use -g "ruby@4.0.6" || exit 1
-  ruby_version=$(mise latest --installed "ruby@4.0.6")
+if ! mise where ruby >/dev/null 2>&1; then
+  MISE_MINIMUM_RELEASE_AGE=0 mise use -g --pin "ruby@4.0.6" || exit 1
 fi
-if ! try_version=$(mise latest --installed "gem:try-cli@latest" 2>/dev/null); then
-  MISE_MINIMUM_RELEASE_AGE=0 mise use -g "gem:try-cli@latest" || exit 1
-  try_version=$(mise latest --installed "gem:try-cli@latest")
+if ! mise where gem:try-cli >/dev/null 2>&1; then
+  MISE_MINIMUM_RELEASE_AGE=0 mise use -g --pin "gem:try-cli@latest" || exit 1
 fi
-exec mise x "ruby@$ruby_version" "gem:try-cli@$try_version" -- try "$@"
+exec mise x ruby gem:try-cli -- try "$@"

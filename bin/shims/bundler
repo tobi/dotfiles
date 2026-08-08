@@ -2,9 +2,7 @@
 set -e
 
 tool="ruby"
-version="4.0.6"
-if ! installed=$(mise latest --installed "$tool@$version" 2>/dev/null); then
-  MISE_MINIMUM_RELEASE_AGE=0 mise use -g "$tool@$version" || exit 1
-  installed=$(mise latest --installed "$tool@$version")
+if ! mise where "$tool" >/dev/null 2>&1; then
+  MISE_MINIMUM_RELEASE_AGE=0 mise use -g --pin "$tool@4.0.6" || exit 1
 fi
-exec mise x "$tool@$installed" -- "bundler" "$@"
+exec mise x "$tool" -- "bundler" "$@"

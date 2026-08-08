@@ -2,6 +2,7 @@
 set -euo pipefail
 
 DOTFILES_PATH="${DOTFILES_PATH:-$HOME/.local/share/dotfiles}"
+cd "$HOME" # Ignore project-local mise.toml files during global reconciliation.
 
 update=0
 if [[ "${1:-}" == "-u" || "${1:-}" == "--update" ]]; then
@@ -33,10 +34,22 @@ if [[ "$update" == 1 ]]; then
   mise_bin=$(command -v mise 2>/dev/null || printf '%s' "$mise_bin")
 fi
 
+# `mise use` records exact versions, so normal `mise x <tool>` calls never
+# resolve `latest`. Updates happen explicitly through `apply -u`.
+"$mise_bin" settings set pin true
+
 # Require prebuilt Ruby binaries instead of falling back to local compilation.
 "$mise_bin" settings set ruby.compile false
 "$mise_bin" settings set ruby.precompiled_url \
   'https://github.com/jdx/ruby/releases/download/{version}/ruby-{version}.{platform}.tar.gz'
+
+# Migrate old fuzzy global entries (latest/lts) to their currently installed
+# versions without upgrading them. Once pinned, subsequent applies are no-ops.
+while read -r tool version _ requested _; do
+  [[ -n "$tool" && -n "$version" ]] || continue
+  [[ "$requested" != "$version" ]] || continue
+  "$mise_bin" use -g --pin "$tool@$version"
+done < <("$mise_bin" ls --global --installed --no-header 2>/dev/null || true)
 
 # Omarchy may have generated equivalent mise wrappers in ~/.local/bin. Remove
 # only that exact generated pattern so the non-updating dotfiles shims can win;
@@ -52,8 +65,21 @@ for shim in "$DOTFILES_PATH/bin/shims"/*; do
 done
 
 if [[ "$update" == 1 ]]; then
-  # Upgrade only tools that have already been installed through a lazy shim.
-  "$mise_bin" upgrade
+  # Re-resolve only tools already installed by a shim, preserving intentional
+  # channels/pins such as node@lts and ruby@4.0.6.
+  for requested in \
+    age@latest ast-grep@latest bat@latest btop@latest bun@latest \
+    duckdb@latest dust@latest envsubst@latest eza@latest fastfetch@latest \
+    fd@latest ffmpeg@latest fzf@latest gh@latest git-lfs@latest \
+    github:tobi/s@latest gitleaks@latest glow@latest gum@latest \
+    herdr@latest hyperfine@latest jq@latest lazygit@latest node@lts \
+    pnpm@latest rclone@latest rg@latest ruby@4.0.6 rust@latest \
+    shellcheck@latest sqlite@latest starship@latest tmux@latest \
+    uv@latest yazi@latest zoxide@latest gem:try-cli@latest; do
+    tool=${requested%@*}
+    "$mise_bin" where "$tool" >/dev/null 2>&1 || continue
+    MISE_MINIMUM_RELEASE_AGE=0 "$mise_bin" use -g --pin "$requested"
+  done
 
   # Bun-backed CLI shims use Bun's global package store.
   if bun_dir=$("$mise_bin" where bun 2>/dev/null); then

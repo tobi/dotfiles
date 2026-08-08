@@ -1,11 +1,10 @@
 #!/bin/bash
 set -e
 
-if ! bun_version=$(mise latest --installed "bun@latest" 2>/dev/null); then
-  MISE_MINIMUM_RELEASE_AGE=0 mise use -g "bun@latest" || exit 1
-  bun_version=$(mise latest --installed "bun@latest")
+if ! mise where bun >/dev/null 2>&1; then
+  MISE_MINIMUM_RELEASE_AGE=0 mise use -g --pin "bun@latest" || exit 1
 fi
-bun="$(mise where "bun@$bun_version")/bin/bun"
+bun="$(mise where bun)/bin/bun"
 if [[ -n "${BUN_INSTALL:-}" ]]; then
   bun_home="$BUN_INSTALL"
 elif [[ -n "${XDG_CACHE_HOME:-}" ]]; then
@@ -17,4 +16,4 @@ bin="$bun_home/bin/opencode"
 if [[ ! -x "$bin" ]]; then
   MISE_MINIMUM_RELEASE_AGE=0 "$bun" add --global "opencode-ai@latest" || exit 1
 fi
-exec mise x "bun@$bun_version" -- "$bin" "$@"
+exec mise x bun -- "$bin" "$@"
