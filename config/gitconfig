@@ -1,0 +1,50 @@
+# Shared Git configuration managed by ~/.local/share/dotfiles.
+#
+# Machine-local configuration belongs in ~/.config/git/config. `apply` keeps
+# that file intact and ensures it includes this one.
+
+[user]
+	name = Tobi Lutke
+	email = tobi@shopify.com
+	signingKey = ~/.ssh/id_ed25519.pub
+
+[gpg]
+	format = ssh
+
+[commit]
+	verbose = true
+	gpgSign = true
+
+[tag]
+	sort = -version:refname
+	gpgSign = true
+
+[init]
+	defaultBranch = main
+
+[alias]
+	co = checkout
+	br = branch
+	ci = commit
+	st = status
+
+[pull]
+	rebase = true
+
+[push]
+	autoSetupRemote = true
+
+[diff]
+	algorithm = histogram
+	colorMoved = plain
+	mnemonicPrefix = true
+
+[column]
+	ui = auto
+
+[branch]
+	sort = -committerdate
+
+[rerere]
+	enabled = true
+	autoupdate = true

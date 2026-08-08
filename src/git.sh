@@ -1,22 +1,68 @@
-# Keep Git identity and GitHub authentication wired up on every machine.
-# These settings are global and idempotent, so sourcing this file is safe.
-if command -v git >/dev/null 2>&1; then
-  git config --global user.name "Tobi Lutke"
-  git config --global user.email "tobi@shopify.com"
+#!/usr/bin/env bash
+set -euo pipefail
 
-  # Sign commits with SSH. Reuses the existing ed25519 key (no GPG expiry
-  # to manage). Only configure signing on machines that actually have the
-  # key, so `apply` on a fresh host does not force gpgsign with nothing to
-  # sign with.
-  if [[ -f "$HOME/.ssh/id_ed25519.pub" ]]; then
-    git config --global gpg.format ssh
-    git config --global user.signingkey "$HOME/.ssh/id_ed25519.pub"
-    git config --global commit.gpgsign true
-    git config --global tag.gpgsign true
-  fi
+DOTFILES_PATH="${DOTFILES_PATH:-$HOME/.local/share/dotfiles}"
+local_config="$HOME/.config/git/config"
+shared_config="$DOTFILES_PATH/config/gitconfig"
+shared_include="~/.local/share/dotfiles/config/gitconfig"
 
-  # Let GitHub CLI manage HTTPS credentials when it is installed.
-  if command -v gh >/dev/null 2>&1; then
-    gh auth setup-git >/dev/null 2>&1 || true
+if [[ -e "$HOME/.gitconfig" ]]; then
+  printf '%s\n' \
+    "warning: ~/.gitconfig exists; dotfiles leave it untouched." \
+    "         Keep machine-local Git settings in ~/.config/git/config and" \
+    "         remove ~/.gitconfig if it causes precedence surprises." >&2
+fi
+
+mkdir -p "$(dirname "$local_config")"
+touch "$local_config"
+
+# Let GitHub CLI keep its machine-local HTTPS credential helpers in the local
+# config. Nothing it writes belongs in the public dotfiles checkout.
+if command -v gh >/dev/null 2>&1; then
+  gh auth setup-git >/dev/null 2>&1 || true
+fi
+
+# These settings moved from the local config into the tracked shared include.
+# Removing stale copies keeps a single source of truth while preserving every
+# machine-local credential, include, URL rewrite and maintenance setting.
+shared_keys=(
+  user.name
+  user.email
+  user.signingkey
+  gpg.format
+  commit.verbose
+  commit.gpgsign
+  tag.sort
+  tag.gpgsign
+  init.defaultbranch
+  alias.co
+  alias.br
+  alias.ci
+  alias.st
+  pull.rebase
+  push.autosetupremote
+  diff.algorithm
+  diff.colormoved
+  diff.mnemonicprefix
+  column.ui
+  branch.sort
+  rerere.enabled
+  rerere.autoupdate
+)
+for key in "${shared_keys[@]}"; do
+  git config --file "$local_config" --unset-all "$key" >/dev/null 2>&1 || true
+done
+
+# Append the shared include once. The local file remains writable for dev and
+# other machine-specific tools; apply never replaces or symlinks it.
+include_present=0
+while IFS= read -r path; do
+  if [[ "$path" == "$shared_include" || "$path" == "$shared_config" ]]; then
+    include_present=1
+    break
   fi
+done < <(git config --file "$local_config" --get-all include.path 2>/dev/null || true)
+
+if [[ "$include_present" == 0 ]]; then
+  git config --file "$local_config" --add include.path "$shared_include"
 fi
