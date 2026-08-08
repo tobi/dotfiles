@@ -1,0 +1,10 @@
+#!/bin/bash
+set -e
+
+tool="btop"
+version="latest"
+if ! installed=$(mise latest --installed "$tool@$version" 2>/dev/null); then
+  MISE_MINIMUM_RELEASE_AGE=0 mise use -g "$tool@$version" || exit 1
+  installed=$(mise latest --installed "$tool@$version")
+fi
+exec mise x "$tool@$installed" -- "btop" "$@"

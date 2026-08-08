@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Install mise without requiring a distro-specific package.
-mise_was_present=1
+DOTFILES_PATH="${DOTFILES_PATH:-$HOME/.local/share/dotfiles}"
+
+update=0
+if [[ "${1:-}" == "-u" || "${1:-}" == "--update" ]]; then
+  update=1
+fi
+
+# Install mise without requiring a distro-specific package. Tools themselves
+# are installed lazily by bin/shims on first use.
 if command -v mise >/dev/null 2>&1; then
   mise_bin=$(command -v mise)
 elif [[ -x "$HOME/.local/bin/mise" ]]; then
   mise_bin="$HOME/.local/bin/mise"
 else
-  mise_was_present=0
   command -v curl >/dev/null 2>&1 || {
     printf 'curl is required to install mise\n' >&2
     exit 1
@@ -22,29 +28,45 @@ if [[ ! -x "$mise_bin" ]] && ! command -v mise >/dev/null 2>&1; then
   exit 1
 fi
 
-if [[ "$mise_was_present" == 1 ]]; then
+if [[ "$update" == 1 ]]; then
   "$mise_bin" self-update --yes || echo "* mise self-update unavailable; continuing"
+  mise_bin=$(command -v mise 2>/dev/null || printf '%s' "$mise_bin")
 fi
 
 # Require prebuilt Ruby binaries instead of falling back to local compilation.
-# The direct template avoids GitHub API lookups, which are often rate-limited on
-# fresh servers sharing a public IP.
 "$mise_bin" settings set ruby.compile false
 "$mise_bin" settings set ruby.precompiled_url \
   'https://github.com/jdx/ruby/releases/download/{version}/ruby-{version}.{platform}.tar.gz'
 
-# Use mise-managed runtimes globally. `mise use` is idempotent and records the
-# choices in ~/.config/mise/config.toml.
-"$mise_bin" use --global \
-  age@latest ast-grep@latest bat@latest btop@latest bun@latest duckdb@latest dust@latest \
-  eza@latest envsubst@latest fastfetch@latest fd@latest ffmpeg@latest fzf@latest \
-  gh@latest git-lfs@latest gitleaks@latest glow@latest gum@latest herdr@latest hyperfine@latest jq@latest \
-  lazygit@latest node@lts pnpm@latest rclone@latest rg@latest ruby@4.0.6 \
-  shellcheck@latest sqlite@latest starship@latest tmux@latest uv@latest yazi@latest \
-  zoxide@latest
+# Omarchy may have generated equivalent mise wrappers in ~/.local/bin. Remove
+# only that exact generated pattern so the non-updating dotfiles shims can win;
+# independently installed commands remain untouched.
+for shim in "$DOTFILES_PATH/bin/shims"/*; do
+  command=$(basename "$shim")
+  wrapper="$HOME/.local/bin/$command"
+  [[ -f "$wrapper" ]] || continue
+  wrapper_head=$(head -n 8 "$wrapper" 2>/dev/null || true)
+  if [[ "$wrapper_head" == *"mise use -g"* && "$wrapper_head" == *"exec mise x"* ]]; then
+    rm -f "$wrapper"
+  fi
+done
 
-# try-cli depends on the mise-managed Ruby installed above.
-"$mise_bin" use --global gem:try-cli@latest
-"$mise_bin" install
+if [[ "$update" == 1 ]]; then
+  # Upgrade only tools that have already been installed through a lazy shim.
+  "$mise_bin" upgrade
 
-printf '\nmise is installed. Start a new shell (or run: eval "$(mise activate bash)")\n'
+  # Bun-backed CLI shims use Bun's global package store.
+  if bun_dir=$("$mise_bin" where bun 2>/dev/null); then
+    bun="$bun_dir/bin/bun"
+    if [[ -n "${BUN_INSTALL:-}" ]]; then
+      bun_home="$BUN_INSTALL"
+    elif [[ -n "${XDG_CACHE_HOME:-}" ]]; then
+      bun_home="$XDG_CACHE_HOME/.bun"
+    else
+      bun_home="$HOME/.bun"
+    fi
+    if [[ -f "$bun_home/install/global/package.json" ]]; then
+      "$bun" update --global --latest
+    fi
+  fi
+fi

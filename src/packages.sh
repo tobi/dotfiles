@@ -8,6 +8,7 @@
 # ── Core utilities ────────────────────────────────────────────────────
 add_package "bc"
 add_package "curl"
+add_apt_package "libatomic1" # Required by mise's prebuilt Node binary.
 add_package "wget"
 add_package_mise "jq" "jq"
 add_package "zstd"

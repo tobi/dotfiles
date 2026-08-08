@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+export PATH="$HOME/.local/bin:$PATH"
+
 if ! command -v gitleaks >/dev/null 2>&1; then
-  echo "gitleaks is required by the dotfiles pre-commit hook; run: apply" >&2
-  exit 1
+  gitleaks="$HOME/.local/share/dotfiles/bin/shims/gitleaks"
+  [[ -x "$gitleaks" ]] || {
+    echo "gitleaks is required by the dotfiles pre-commit hook; run: apply" >&2
+    exit 1
+  }
+else
+  gitleaks=$(command -v gitleaks)
 fi
 
-exec gitleaks git --staged --redact --no-banner
+exec "$gitleaks" git --staged --redact --no-banner

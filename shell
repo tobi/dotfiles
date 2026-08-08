@@ -29,15 +29,22 @@ add_path() {
   esac
 }
 
-path_first() {
-  local dir="$1" padded_path
-  [[ -d "$dir" ]] || return 0
-  padded_path=":$PATH:"
-  padded_path=${padded_path//":$dir:"/:}
-  padded_path=${padded_path#:}
-  padded_path=${padded_path%:}
-  PATH="$dir${padded_path:+:$padded_path}"
-}
+# Undo mise activation inherited from a parent shell. The lazy wrappers call
+# `mise x` explicitly and do not need mise to rewrite the whole shell PATH.
+if [[ -n "${MISE_SHELL:-}" ]] && command -v mise >/dev/null 2>&1; then
+  eval "$(mise deactivate)"
+fi
+
+# Lazy shims are the last resort: system/Homebrew/user commands win naturally.
+# Remove inherited mise/dotfiles shim paths first so the opt-out is reliable.
+PATH=":$PATH:"
+PATH=${PATH//":${HOME}/.local/share/mise/shims:"/:}
+PATH=${PATH//":${DOTFILES_PATH}/bin/shims:"/:}
+PATH=${PATH#:}
+PATH=${PATH%:}
+if [[ -z "${DOTFILES_NO_SHIMS:-}" ]]; then
+  PATH="$PATH:${DOTFILES_PATH}/bin/shims"
+fi
 
 # Listed from lowest to highest priority because each entry is prepended.
 add_path "/opt/homebrew/bin"
@@ -63,7 +70,6 @@ else
 fi
 
 source "$DOTFILES_PATH/src/std.sh"
-source "$DOTFILES_PATH/src/mise.sh"
 
 load_local_overrides() {
   [[ -f "$HOME/.${SHELL_ENV}rc.local" ]] && source "$HOME/.${SHELL_ENV}rc.local"
@@ -88,8 +94,6 @@ source "$DOTFILES_PATH/src/tools.sh"
 # See if we need some local overrides (.zshrc.local, .bashrc.local)
 load_local_overrides
 
-# Mise shims win even when local overrides prepend other toolchains.
-path_first "$HOME/.local/share/mise/shims"
 export PATH
 
 if [[ "$DOTFILES_APPLY_NEEDED" == 1 ]]; then

@@ -5,10 +5,22 @@ export DOTFILES_PATH="$HOME/.local/share/dotfiles"
 export PATH="$HOME/.local/bin:$PATH"
 [[ ! -d /opt/homebrew/bin ]] || export PATH="/opt/homebrew/bin:$PATH"
 
-if [[ "${1:-}" != "--skip-pull" ]]; then
+update_tools=0
+skip_pull=0
+for arg in "$@"; do
+  case "$arg" in
+    -u|--update) update_tools=1 ;;
+    --skip-pull) skip_pull=1 ;;
+    *) echo "usage: apply [-u|--update] [--skip-pull]" >&2; exit 2 ;;
+  esac
+done
+
+if [[ "$skip_pull" == 0 ]]; then
   echo "updating dotfiles..."
   git -C "$DOTFILES_PATH" pull --rebase
-  exec "$DOTFILES_PATH/bin/apply" --skip-pull
+  args=(--skip-pull)
+  [[ "$update_tools" == 0 ]] || args+=(-u)
+  exec "$DOTFILES_PATH/bin/apply" "${args[@]}"
 fi
 
 run_as_root() {
@@ -22,8 +34,12 @@ run_as_root() {
   fi
 }
 
-echo "updating mise and managed tools..."
-"$DOTFILES_PATH/bin/install-mise"
+echo "installing mise..."
+if [[ "$update_tools" == 1 ]]; then
+  "$DOTFILES_PATH/bin/install-mise" -u
+else
+  "$DOTFILES_PATH/bin/install-mise"
+fi
 
 # Load the declarative native package list after mise so portable tools are not
 # redundantly requested from the system package manager.

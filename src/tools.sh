@@ -6,7 +6,10 @@ else
 fi
 
 if command_present "zoxide"; then
-  eval "$(zoxide init "$SHELL_ENV")"
+  zoxide_command=$(command -v zoxide)
+  if [[ "$zoxide_command" != "$DOTFILES_PATH/bin/shims/zoxide" ]] || mise where zoxide >/dev/null 2>&1; then
+    eval "$(zoxide init "$SHELL_ENV")"
+  fi
 else
   add_package_mise "zoxide" "zoxide"
 fi
@@ -107,7 +110,10 @@ if command -v try >/dev/null 2>&1; then
 fi
 
 if command -v starship >/dev/null 2>&1; then
-  eval "$(starship init "$SHELL_ENV")"
+  starship_command=$(command -v starship)
+  if [[ "$starship_command" != "$DOTFILES_PATH/bin/shims/starship" ]] || mise where starship >/dev/null 2>&1; then
+    eval "$(starship init "$SHELL_ENV")"
+  fi
 fi
 
 # Linux clipboard aliases (macOS compatibility)

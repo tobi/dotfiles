@@ -48,12 +48,19 @@ add_package() {
   add_pacman_package "$package"
 }
 
-# Prefer mise, with optional native fallbacks:
+# Prefer a native installation, then a dotfiles lazy shim. Native package
+# fallbacks are needed only on hosts without mise.
 # add_package_mise <tool> [apt-package] [brew-package] [pacman-package]
 add_package_mise() {
+  local tool="$1"
   local apt_package="${2:-}"
   local brew_package="${3:-${2:-}}"
   local pacman_package="${4:-${2:-}}"
+
+  if command_present "$tool" || [[ -x "$DOTFILES_PATH/bin/shims/$tool" ]]; then
+    return
+  fi
+  [[ -z "${DOTFILES_NO_SHIMS:-}" ]] || return
 
   DOTFILES_APPLY_NEEDED=1
   if [[ "$MISE_AVAILABLE" == 1 ]]; then

@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e
+
+if ! bun_version=$(mise latest --installed "bun@latest" 2>/dev/null); then
+  MISE_MINIMUM_RELEASE_AGE=0 mise use -g "bun@latest" || exit 1
+  bun_version=$(mise latest --installed "bun@latest")
+fi
+bun="$(mise where "bun@$bun_version")/bin/bun"
+if [[ -n "${BUN_INSTALL:-}" ]]; then
+  bun_home="$BUN_INSTALL"
+elif [[ -n "${XDG_CACHE_HOME:-}" ]]; then
+  bun_home="$XDG_CACHE_HOME/.bun"
+else
+  bun_home="$HOME/.bun"
+fi
+bin="$bun_home/bin/playwright"
+if [[ ! -x "$bin" ]]; then
+  MISE_MINIMUM_RELEASE_AGE=0 "$bun" add --global "playwright@latest" || exit 1
+fi
+exec mise x "bun@$bun_version" -- "$bin" "$@"
