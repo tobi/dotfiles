@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+key="$HOME/.ssh/id_ed25519.pub"
+repo="${DOTFILES_SIGNING_REPO:-tobi/dotfiles}"
+branch="${DOTFILES_SIGNING_BRANCH:-main}"
+title="dotfiles signing $(hostname -s)"
+
+[[ -f "$key" ]] || { echo "no signing key found at $key" >&2; exit 1; }
+command -v gh >/dev/null 2>&1 || { echo "gh is not installed" >&2; exit 1; }
+
+printf '%s\n' \
+  "Configuring GitHub SSH commit verification:" \
+  "  key:    $key" \
+  "  repo:   $repo" \
+  "  branch: $branch" \
+  "" \
+  "GitHub authentication may open an interactive browser/device flow."
+
+# Permit the GitHub CLI token to list and add SSH signing keys. This changes
+# only the token's OAuth scopes; it does not upload the private key.
+gh auth refresh -h github.com -s admin:ssh_signing_key
+
+# GitHub stores the public key without necessarily retaining its comment.
+# Compare key type + key body so rerunning this command remains idempotent.
+read -r local_type local_body _ < "$key"
+key_present=0
+while IFS= read -r remote_key; do
+  read -r remote_type remote_body _ <<< "$remote_key"
+  if [[ "$remote_type" == "$local_type" && "$remote_body" == "$local_body" ]]; then
+    key_present=1
+    break
+  fi
+done < <(gh api user/ssh_signing_keys --jq '.[].key')
+
+if [[ "$key_present" == 0 ]]; then
+  gh ssh-key add --type signing "$key" --title "$title"
+  echo "uploaded public signing key: $title"
+else
+  echo "public signing key is already registered"
+fi
+
+# Reject commits GitHub cannot verify as signed on the protected branch.
+gh api --method POST \
+  "repos/$repo/branches/$branch/protection/required_signatures" >/dev/null
+
+enabled=$(gh api \
+  "repos/$repo/branches/$branch/protection/required_signatures" \
+  --jq '.enabled')
+[[ "$enabled" == true ]] || { echo "signed-commit protection was not enabled" >&2; exit 1; }
+
+echo "$repo $branch now requires GitHub-verified signed commits"
