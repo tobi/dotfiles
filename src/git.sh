@@ -66,3 +66,8 @@ done < <(git config --file "$local_config" --get-all include.path 2>/dev/null ||
 if [[ "$include_present" == 0 ]]; then
   git config --file "$local_config" --add include.path "$shared_include"
 fi
+
+# This setting is intentionally local to the dotfiles checkout. A global
+# hooksPath would disable repository-specific hooks in every other checkout.
+# apply reruns this on existing machines and immediately after a fresh clone.
+git -C "$DOTFILES_PATH" config --local core.hooksPath .githooks
