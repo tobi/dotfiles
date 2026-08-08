@@ -62,12 +62,6 @@ else
   export SHELL_ENV=bash
 fi
 
-# Compatibility wrapper; the executable in bin also works from non-interactive
-# shells and command runners.
-dotfiles-signing-enable() {
-  command dotfiles-signing-enable "$@"
-}
-
 source "$DOTFILES_PATH/src/std.sh"
 source "$DOTFILES_PATH/src/mise.sh"
 

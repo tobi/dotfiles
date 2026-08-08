@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+key="${1:-$HOME/.ssh/id_ed25519.pub}"
+title="dotfiles signing $(hostname -s)"
+
+[[ -f "$key" ]] || { echo "no public signing key found at $key" >&2; exit 1; }
+command -v gh >/dev/null 2>&1 || { echo "gh is not installed" >&2; exit 1; }
+gh auth status -h github.com >/dev/null 2>&1 || {
+  echo "gh is not authenticated to github.com; run: gh auth login" >&2
+  exit 1
+}
+
+# GitHub stores the public key without necessarily retaining its comment.
+# Compare key type + body so rerunning this command remains idempotent.
+if ! remote_keys=$(gh api user/ssh_signing_keys --jq '.[].key' 2>&1); then
+  printf '%s\n' "$remote_keys" >&2
+  cat >&2 <<'EOF'
+Unable to list GitHub signing keys. If gh lacks the required scope, grant it once:
+  gh auth refresh -h github.com -s admin:ssh_signing_key
+Then rerun dotfiles-signkey-submit.
+EOF
+  exit 1
+fi
+
+read -r local_type local_body _ < "$key"
+while IFS= read -r remote_key; do
+  read -r remote_type remote_body _ <<< "$remote_key"
+  if [[ "$remote_type" == "$local_type" && "$remote_body" == "$local_body" ]]; then
+    echo "public signing key is already registered"
+    exit 0
+  fi
+done <<< "$remote_keys"
+
+gh ssh-key add --type signing "$key" --title "$title"
+echo "uploaded public signing key: $title"
