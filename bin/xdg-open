@@ -67,7 +67,7 @@ msg+=$'\n'
 msg+=$'\e[1;36m=== One command from your local machine ===\e[0m\n'
 msg+=$'\n'
 msg+=$'\e[32m'
-msg+="~/dotnix/bin/chromium-ssh dev 9050 ${quoted_url}"
+msg+="~/dotnix/bin/chrome-ssh dev 9050 ${quoted_url}"
 msg+=$'\e[0m\n'
 msg+=$'\n'
 msg+=$'\e[1;36m=== Manual setup from your local machine ===\e[0m\n'
