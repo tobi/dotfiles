@@ -5,4 +5,62 @@ tool="btop"
 if ! mise where "$tool" >/dev/null 2>&1; then
   mise use -g --pin "$tool@latest" || exit 1
 fi
-exec mise x "$tool" -- "btop" "$@"
+
+# Upstream's release binaries are static and explicitly built without GPU
+# support. When NVIDIA tooling is present, build the same mise-pinned release
+# dynamically so btop can load libnvidia-ml at runtime.
+if command -v nvidia-smi >/dev/null 2>&1; then
+  version=$(basename "$(mise where "$tool")")
+  cache_home="${XDG_CACHE_HOME:-$HOME/.cache}"
+  install_root="$cache_home/dotfiles/btop-gpu/$version"
+  binary="$install_root/bin/btop"
+
+  if [[ ! -x "$binary" ]]; then
+    if command -v g++ >/dev/null 2>&1; then
+      cxx=g++
+    elif command -v clang++ >/dev/null 2>&1; then
+      cxx=clang++
+    else
+      echo "NVIDIA detected, but a C++ compiler is required for GPU-enabled btop." >&2
+      exec mise x "$tool" -- btop "$@"
+    fi
+
+    for dependency in curl make tar; do
+      command -v "$dependency" >/dev/null 2>&1 || {
+        echo "NVIDIA detected, but '$dependency' is required for GPU-enabled btop." >&2
+        exec mise x "$tool" -- btop "$@"
+      }
+    done
+
+    jobs=$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)
+    build_dir=$(mktemp -d)
+    staging="$install_root.tmp.$$"
+    cleanup() {
+      rm -rf "$build_dir" "$staging"
+    }
+    trap cleanup EXIT
+
+    curl -fsSL \
+      "https://github.com/aristocratos/btop/archive/refs/tags/v${version}.tar.gz" |
+      tar -xz -C "$build_dir"
+    make -C "$build_dir/btop-$version" -j"$jobs" \
+      CXX="$cxx" GPU_SUPPORT=true QUIET=true
+    make -C "$build_dir/btop-$version" install PREFIX="$staging"
+
+    build_info=$("$staging/bin/btop" --version)
+    [[ "$build_info" == *"GPU_SUPPORT=true"* ]] || {
+      echo "btop build completed without GPU support" >&2
+      exit 1
+    }
+
+    mkdir -p "$(dirname "$install_root")"
+    rm -rf "$install_root"
+    mv "$staging" "$install_root"
+    trap - EXIT
+    rm -rf "$build_dir"
+  fi
+
+  exec "$binary" "$@"
+fi
+
+exec mise x "$tool" -- btop "$@"
