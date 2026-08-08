@@ -15,7 +15,24 @@ fi
 # remain attached for the browser's entire lifetime.
 if [[ -z "${SSH_CONNECTION:-}${SSH_CLIENT:-}${SSH_TTY:-}" ]] \
     && [[ -n "${WAYLAND_DISPLAY:-}${DISPLAY:-}" ]]; then
-  exec omarchy-launch-browser "$@"
+  # URLs (http(s)://, mailto:, etc.) go through Omarchy's detached browser
+  # launcher. Local paths, file:// URIs and anything that resolves to an
+  # existing file/dir are handed to the real xdg-open so mime handlers apply
+  # (e.g. inode/directory -> Nautilus, not Chrome). /usr/bin/xdg-open's
+  # foreground-Chrome problem only affects the URL branch.
+  url_like=0
+  if [[ $# -gt 0 ]]; then
+    case "$1" in
+      http://*|https://*|ftp://*|mailto:*) url_like=1 ;;
+      file://*) url_like=0 ;;
+      *) [[ -e "$1" ]] || url_like=1 ;;
+    esac
+  fi
+  if [[ $url_like -eq 1 ]]; then
+    exec omarchy-launch-browser "$@"
+  else
+    exec /usr/bin/xdg-open "$@"
+  fi
 fi
 
 if [[ $# -eq 0 ]]; then

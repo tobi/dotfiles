@@ -1,0 +1,252 @@
+#!/usr/bin/env bash
+#
+# chrome-ssh — SSH SOCKS5 proxy + Chrome in one shot
+#
+# Works on macOS and Linux.
+#
+# Usage:
+#   chrome-ssh [host] [port] [url...]
+#
+#   host  SSH target (default: from config or "dev")
+#   port  Local SOCKS5 port (default: 9050)
+#   url   Optional URL(s) to open immediately
+#
+# Examples:
+#   chrome-ssh
+#   chrome-ssh staging
+#   chrome-ssh prod 9999 https://internal.example.com
+#
+# Config: ~/.config/chrome-ssh/config
+#   HOST=dev
+#   PORT=9050
+#   SSH_OPTS=-i ~/.ssh/deploy
+
+set -euo pipefail
+
+# ── Help ───────────────────────────────────────────────────────
+if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
+  cat <<'USAGE'
+Usage: chrome-ssh [options] [host] [port] [url...]
+
+Start an SSH SOCKS5 proxy and launch Chrome through it.
+
+Arguments:
+  host    SSH target (default: from config or "dev")
+  port    Local SOCKS5 port (default: 9050)
+  url     URL(s) to open immediately
+
+Options:
+  -h, --help    Show this help
+  -l, --list    List SSH hosts from ~/.ssh/config
+
+Config: ~/.config/chrome-ssh/config
+  HOST=dev
+  PORT=9050
+  SSH_OPTS=-i ~/.ssh/deploy
+
+Examples:
+  chrome-ssh                          # proxy through default host
+  chrome-ssh staging                  # proxy through "staging"
+  chrome-ssh prod 9999                # custom port
+  chrome-ssh dev 9050 http://localhost:3000  # open a URL
+USAGE
+  exit 0
+elif [[ "${1:-}" == "--list" ]] || [[ "${1:-}" == "-l" ]]; then
+  if [[ -f "$HOME/.ssh/config" ]]; then
+    echo "SSH hosts from ~/.ssh/config:"
+    grep -E '^\s*Host ' "$HOME/.ssh/config" | awk '{print "  " $2}' | grep -v '^\s*\*' | head -30
+  else
+    echo "No ~/.ssh/config found."
+  fi
+  exit 0
+fi
+
+# ── Config ─────────────────────────────────────────────────────
+CONFIG_FILE="$HOME/.config/chrome-ssh/config"
+DEFAULT_HOST="dev"
+DEFAULT_PORT=9050
+
+if [[ -f "$CONFIG_FILE" ]]; then
+  source "$CONFIG_FILE"
+fi
+
+HOST="${1:-${HOST:-$DEFAULT_HOST}}"; shift 2>/dev/null || true
+PORT="${1:-${PORT:-$DEFAULT_PORT}}"; shift 2>/dev/null || true
+
+# Remaining args are URLs to open
+URLS=("$@")
+
+# ── Colors ─────────────────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+log_info()  { echo -e "${CYAN}🔗${NC} $*"; }
+log_ok()    { echo -e "${GREEN}✅${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}⚠️${NC} $*" >&2; }
+log_error() { echo -e "${RED}❌${NC} $*" >&2; }
+log_bye()   { echo -e "${CYAN}👋${NC} $*"; }
+
+# ── Detect OS ──────────────────────────────────────────────────
+OS="$(uname -s)"
+
+# ── Find Chrome/Chromium ──────────────────────────────────────
+CHROME_BIN=""
+
+find_macos_chrome() {
+  for app in \
+    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary" \
+    "/Applications/Chromium.app/Contents/MacOS/Chromium" \
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser"; do
+    if [[ -x "$app" ]]; then
+      CHROME_BIN="$app"
+      return
+    fi
+  done
+}
+
+find_linux_chrome() {
+  # Prefer snap/flatpak, then common paths
+  for bin in \
+    "/snap/bin/chromium" \
+    "/snap/bin/google-chrome" \
+    "google-chrome-stable" \
+    "google-chrome" \
+    "chromium-browser" \
+    "chromium"; do
+    if command -v "$bin" &>/dev/null; then
+      CHROME_BIN="$(command -v "$bin")"
+      return
+    fi
+  done
+  # Check common install locations
+  for path in \
+    "/usr/bin/google-chrome-stable" \
+    "/usr/bin/google-chrome" \
+    "/usr/bin/chromium-browser" \
+    "/usr/bin/chromium" \
+    "/opt/google/chrome/google-chrome"; do
+    if [[ -x "$path" ]]; then
+      CHROME_BIN="$path"
+      return
+    fi
+  done
+}
+
+if [[ "$OS" == "Darwin" ]]; then
+  find_macos_chrome
+elif [[ "$OS" == "Linux" ]]; then
+  find_linux_chrome
+fi
+
+if [[ -z "$CHROME_BIN" ]]; then
+  log_error "No Chrome or Chromium found."
+  if [[ "$OS" == "Darwin" ]]; then
+    echo "  Install from https://www.google.com/chrome/" >&2
+  else
+    echo "  Try: sudo apt install chromium-browser" >&2
+  fi
+  exit 1
+fi
+
+BROWSER_NAME="$(basename "$CHROME_BIN")"
+
+# ── Check SSH host ────────────────────────────────────────────
+if ! ssh -o BatchMode=yes -o ConnectTimeout=3 "$HOST" echo OK &>/dev/null; then
+  log_warn "Cannot reach '$HOST' (you may need to enter your key passphrase next)"
+fi
+
+# ── Build SSH command ─────────────────────────────────────────
+SSH_EXTRA="${SSH_OPTS:-}"
+SSH_CMD=(ssh -D "$PORT" -N -C -q -o ExitOnForwardFailure=yes $SSH_EXTRA "$HOST")
+
+# ── Profile ───────────────────────────────────────────────────
+if [[ "$OS" == "Darwin" ]]; then
+  PROFILE_DIR="$HOME/Library/Caches/chrome-ssh"
+else
+  PROFILE_DIR="$HOME/.cache/chrome-ssh"
+fi
+mkdir -p "$PROFILE_DIR/Default"
+
+# ── Theme (orange frame so you know it's the proxy browser) ───
+PREFS="$PROFILE_DIR/Default/Preferences"
+if [[ ! -f "$PREFS" ]]; then
+  cat > "$PREFS" <<'EOF'
+{
+  "browser": {
+    "theme": {
+      "color_scheme": 2,
+      "user_color": -29696
+    }
+  }
+}
+EOF
+fi
+
+# ── Cleanup ───────────────────────────────────────────────────
+SSH_PID=""
+
+cleanup() {
+  if [[ -n "$SSH_PID" ]] && kill -0 "$SSH_PID" 2>/dev/null; then
+    echo ""
+    log_info "Shutting down SSH tunnel (pid $SSH_PID) …"
+    kill "$SSH_PID" 2>/dev/null || true
+    wait "$SSH_PID" 2>/dev/null || true
+  fi
+  log_bye "Done."
+}
+trap cleanup EXIT INT TERM
+
+# ── Launch ────────────────────────────────────────────────────
+echo ""
+echo -e "${BOLD}chrome-ssh${NC} — all traffic via ${BOLD}$HOST${NC}"
+log_info "SOCKS5 proxy → localhost:$PORT"
+log_info "Browser: $BROWSER_NAME"
+log_info "Profile: $PROFILE_DIR"
+echo ""
+
+# Start SSH tunnel
+"${SSH_CMD[@]}" &
+SSH_PID=$!
+
+# Wait for the tunnel to be ready
+for i in $(seq 1 20); do
+  if bash -c "echo > /dev/tcp/localhost/$PORT" 2>/dev/null; then
+    break
+  fi
+  sleep 0.1
+done
+
+if ! kill -0 "$SSH_PID" 2>/dev/null; then
+  log_error "SSH tunnel failed to start"
+  exit 1
+fi
+
+log_ok "SSH tunnel up (pid $SSH_PID)"
+
+# Build Chrome args
+CHROME_ARGS=(
+  --proxy-server="socks5://localhost:$PORT"
+  --host-resolver-also-proxy
+  --user-data-dir="$PROFILE_DIR"
+  --no-first-run
+  --disable-default-apps
+  --proxy-bypass-list="<-loopback>"
+)
+
+# Open URLs if provided
+if [[ ${#URLS[@]} -gt 0 ]]; then
+  CHROME_ARGS+=("${URLS[@]}")
+  log_info "Opening: ${URLS[*]:0:80}"
+  if [[ ${#URLS[*]} -gt 80 ]]; then echo "  ... (${#URLS[@]} total)" >&2; fi
+fi
+
+echo ""
+log_info "Launching ${BROWSER_NAME} … (close it to stop the proxy)"
+echo ""
+
+exec "$CHROME_BIN" "${CHROME_ARGS[@]}"

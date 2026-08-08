@@ -62,6 +62,36 @@ else
   export SHELL_ENV=bash
 fi
 
+# One-time: register this machine's SSH key as a GitHub *signing* key and lock
+# the dotfiles repo to signed commits. Run it once per machine after the key
+# exists; it is otherwise a no-op. Requires the interactive gh OAuth refresh
+# (admin:ssh_signing_key scope) which is why it lives behind a function and
+# not in apply.
+dotfiles-signing-enable() {
+  local key="$HOME/.ssh/id_ed25519.pub"
+  [[ -f "$key" ]] || { echo "no $key found" >&2; return 1; }
+  command -v gh >/dev/null 2>&1 || { echo "gh not installed" >&2; return 1; }
+
+  # Ensure the token can manage signing keys (interactive browser/device flow).
+  gh auth refresh -h github.com -s admin:ssh_signing_key || return $?
+
+  # Upload as a signing key if not already present (GitHub dedupes by content
+  # but re-adding returns a conflict, so guard on a title match).
+  local pub title="dotfiles signing $(hostname -s)"
+  pub=$(cat "$key")
+  if ! gh api user/ssh_signing_keys --jq '.[].key' 2>/dev/null | grep -qF "$pub"; then
+    gh ssh-key add --type signing "$key" --title "$title" || return $?
+    echo "uploaded signing key: $title"
+  else
+    echo "signing key already on GitHub"
+  fi
+
+  # Require signed commits on dotfiles main (owner-only branch protection).
+  gh api -X POST repos/tobi/dotfiles/branches/main/protection/required_signatures \
+    >/dev/null 2>&1 && echo "dotfiles main now requires signed commits" ||
+    echo "could not enable required_signatures (need repo admin)"
+}
+
 source "$DOTFILES_PATH/src/std.sh"
 source "$DOTFILES_PATH/src/mise.sh"
 

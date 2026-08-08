@@ -115,3 +115,8 @@ if [[ "$SHELL_ENV" == "zsh" || "$SHELL_ENV" == "bash" ]] && command_present "wl-
   alias pbcopy="wl-copy"
   alias pbpaste="wl-paste"
 fi
+
+# macOS' `open` command, emulated on Linux via xdg-open.
+if [[ "$VENDOR" != "apple" ]] && command_present "xdg-open"; then
+  alias open="xdg-open"
+fi
