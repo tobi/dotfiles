@@ -50,7 +50,10 @@ assert_install() {
   bash --noprofile --rcfile "$HOME/.bashrc" -i -c '
     set -e
     test "$DOTFILES_APPLY_NEEDED" -eq 0
-    test "${PATH##*:}" = "$HOME/.local/share/dotfiles/bin/shims"
+    case ":$PATH:" in
+      *":$HOME/.local/share/dotfiles/bin/shims:$HOME/.local/share/mise/shims:"*) ;;
+      *) exit 1 ;;
+    esac
     command -v node
     command -v ruby
     command -v uv

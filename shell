@@ -35,8 +35,9 @@ if [[ -n "${MISE_SHELL:-}" ]] && command -v mise >/dev/null 2>&1; then
   eval "$(mise deactivate)"
 fi
 
-# Lazy shims are the last resort: system/Homebrew/user commands win naturally.
-# Remove inherited mise/dotfiles shim paths first so the opt-out is reliable.
+# System/Homebrew/user commands win naturally. Dotfiles shims come next, then
+# mise's generic shims, so a global mise entry cannot bypass dotfiles policy.
+# Remove inherited copies first so ordering and the opt-out are reliable.
 PATH=":$PATH:"
 PATH=${PATH//":${HOME}/.local/share/mise/shims:"/:}
 PATH=${PATH//":${DOTFILES_PATH}/bin/shims:"/:}
@@ -45,6 +46,7 @@ PATH=${PATH%:}
 if [[ -z "${DOTFILES_NO_SHIMS:-}" ]]; then
   PATH="$PATH:${DOTFILES_PATH}/bin/shims"
 fi
+PATH="$PATH:${HOME}/.local/share/mise/shims"
 
 # Listed from lowest to highest priority because each entry is prepended.
 add_path "/opt/homebrew/bin"

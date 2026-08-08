@@ -92,16 +92,23 @@ else
 fi
 
 # Tools added by newer dotfiles are reconciled by apply.
-require_apply_tool "herdr"
 require_apply_tool "starship"
 require_apply_tool "try"
 
-# Defer try's Ruby-powered shell integration until its first use.
+# `t` aliases to this function. `try exec` has a stable contract: print the
+# shell operation needed to enter/create the selected workspace. No generated
+# activation code is evaluated during shell startup or first use.
 if command -v try >/dev/null 2>&1; then
   try() {
-    unset -f try
-    eval "$(command try init "$HOME/src/tries")"
-    try "$@"
+    local out status
+    out=$(command try exec --path "${TRY_PATH:-$HOME/src/tries}" "$@" 2>/dev/tty)
+    status=$?
+    if [[ "$status" == 0 ]]; then
+      eval "$out"
+    else
+      printf '%s\n' "$out"
+      return "$status"
+    fi
   }
 fi
 

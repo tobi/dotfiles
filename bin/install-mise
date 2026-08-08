@@ -57,6 +57,15 @@ while read -r tool version _ requested _; do
   "$mise_bin" use -g --pin "$tool@$version"
 done < <("$mise_bin" ls --global --installed --no-header 2>/dev/null || true)
 
+# Retire the old registry mapping; Herdr now installs from herdrdev/herdr via
+# its standalone shim. Keep the already-downloaded binary for cache reuse.
+"$mise_bin" unuse -g --no-prune herdr >/dev/null 2>&1 || true
+
+# Starship is the one eager mise tool because shell startup consumes it.
+if ! "$mise_bin" where starship >/dev/null 2>&1; then
+  "$mise_bin" use -g --pin starship@latest
+fi
+
 # Omarchy may have generated equivalent mise wrappers in ~/.local/bin. Remove
 # only that exact generated pattern so the non-updating dotfiles shims can win;
 # independently installed commands remain untouched.
@@ -71,21 +80,12 @@ for shim in "$DOTFILES_PATH/bin/shims"/*; do
 done
 
 if [[ "$update" == 1 ]]; then
-  # Re-resolve only tools already installed by a shim, preserving intentional
-  # channels/pins such as node@lts and ruby@4.0.6.
-  for requested in \
-    age@latest ast-grep@latest bat@latest btop@latest bun@latest \
-    duckdb@latest dust@latest envsubst@latest eza@latest fastfetch@latest \
-    fd@latest ffmpeg@latest fzf@latest gh@latest git-lfs@latest \
-    github:tobi/s@latest gitleaks@latest glow@latest gum@latest \
-    herdr@latest hyperfine@latest jq@latest lazygit@latest node@lts \
-    pnpm@latest rclone@latest rg@latest ruby@4.0.6 rust@latest \
-    shellcheck@latest sqlite@latest starship@latest tmux@latest \
-    uv@latest yazi@latest zoxide@latest gem:try-cli@latest; do
-    tool=${requested%@*}
-    "$mise_bin" where "$tool" >/dev/null 2>&1 || continue
-    "$mise_bin" use -g --pin "$requested"
-  done
+  # Lazy shims add exact global pins on first use. Update only those existing
+  # pins; preserve Node's LTS channel and Ruby's intentional fixed version.
+  "$mise_bin" upgrade --bump --exclude node --exclude ruby
+  if "$mise_bin" where node >/dev/null 2>&1; then
+    "$mise_bin" use -g --pin node@lts
+  fi
 
   # Bun-backed CLI shims use Bun's global package store.
   if bun_dir=$("$mise_bin" where bun 2>/dev/null); then

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-tool="herdr"
+tool="github:herdrdev/herdr"
 if ! mise where "$tool" >/dev/null 2>&1; then
   mise use -g --pin "$tool@latest" || exit 1
 fi
