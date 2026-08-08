@@ -2,7 +2,7 @@
 set -e
 
 if ! mise where bun >/dev/null 2>&1; then
-  MISE_MINIMUM_RELEASE_AGE=0 mise use -g --pin "bun@latest" || exit 1
+  mise use -g --pin "bun@latest" || exit 1
 fi
 bun="$(mise where bun)/bin/bun"
 if [[ -n "${BUN_INSTALL:-}" ]]; then
@@ -14,6 +14,6 @@ else
 fi
 bin="$bun_home/bin/opencode"
 if [[ ! -x "$bin" ]]; then
-  MISE_MINIMUM_RELEASE_AGE=0 "$bun" add --global "opencode-ai@latest" || exit 1
+  "$bun" add --global "opencode-ai@latest" || exit 1
 fi
 exec mise x bun -- "$bin" "$@"

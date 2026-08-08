@@ -38,6 +38,9 @@ fi
 # resolve `latest`. Updates happen explicitly through `apply -u`.
 "$mise_bin" settings set pin true
 
+# Avoid brand-new releases until they have had a week of exposure.
+"$mise_bin" settings set minimum_release_age 7d
+
 # Require prebuilt Ruby binaries instead of falling back to local compilation.
 "$mise_bin" settings set ruby.compile false
 "$mise_bin" settings set ruby.precompiled_url \
@@ -78,7 +81,7 @@ if [[ "$update" == 1 ]]; then
     uv@latest yazi@latest zoxide@latest gem:try-cli@latest; do
     tool=${requested%@*}
     "$mise_bin" where "$tool" >/dev/null 2>&1 || continue
-    MISE_MINIMUM_RELEASE_AGE=0 "$mise_bin" use -g --pin "$requested"
+    "$mise_bin" use -g --pin "$requested"
   done
 
   # Bun-backed CLI shims use Bun's global package store.

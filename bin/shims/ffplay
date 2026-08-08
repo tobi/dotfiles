@@ -3,6 +3,6 @@ set -e
 
 tool="ffmpeg"
 if ! mise where "$tool" >/dev/null 2>&1; then
-  MISE_MINIMUM_RELEASE_AGE=0 mise use -g --pin "$tool@latest" || exit 1
+  mise use -g --pin "$tool@latest" || exit 1
 fi
 exec mise x "$tool" -- "ffplay" "$@"

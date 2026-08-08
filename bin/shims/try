@@ -2,9 +2,9 @@
 set -e
 
 if ! mise where ruby >/dev/null 2>&1; then
-  MISE_MINIMUM_RELEASE_AGE=0 mise use -g --pin "ruby@4.0.6" || exit 1
+  mise use -g --pin "ruby@4.0.6" || exit 1
 fi
 if ! mise where gem:try-cli >/dev/null 2>&1; then
-  MISE_MINIMUM_RELEASE_AGE=0 mise use -g --pin "gem:try-cli@latest" || exit 1
+  mise use -g --pin "gem:try-cli@latest" || exit 1
 fi
 exec mise x ruby gem:try-cli -- try "$@"
