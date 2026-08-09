@@ -37,6 +37,7 @@ fi
 # `mise use` records exact versions, so normal `mise x <tool>` calls never
 # resolve `latest`. Updates happen explicitly through `apply -u`.
 "$mise_bin" settings set pin true
+"$mise_bin" settings set github.use_git_credentials true
 
 # Avoid brand-new releases until they have had a week of exposure. Our own
 # rapidly iterated tools are exempt from the age gate.

@@ -33,6 +33,7 @@ assert_install() {
 
   test -d "$dotfiles/.git"
   test -x "$mise"
+  test "$("$mise" settings get github.use_git_credentials)" = "true"
   test -L "$HOME/.bashrc"
   test -L "$HOME/.config/starship.toml"
   grep -qF "source \"$dotfiles/shell\"" "$HOME/.zshrc"
