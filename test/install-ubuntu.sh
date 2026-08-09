@@ -89,11 +89,11 @@ run_installer
 assert_install
 
 # Re-applying must update and preserve a working installation.
-key_lines_before=$(wc -l < "$HOME/.ssh/authorized_keys")
 run_apply
 assert_install
-key_lines_after=$(wc -l < "$HOME/.ssh/authorized_keys")
-test "$key_lines_before" -eq "$key_lines_after"
+
+# The installer must never provision SSH access.
+test ! -e "$HOME/.ssh/authorized_keys"
 
 echo "Ubuntu dotfiles E2E: OK"
 CONTAINER

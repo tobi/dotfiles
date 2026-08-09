@@ -4,15 +4,23 @@ set -e
 DOTFILES_PATH="$HOME/.local/share/dotfiles"
 LEGACY_DOTFILES_PATH="$HOME/dotfiles"
 
-append() {
-  local text="$1" file="$2"
-  [[ -f "$file" ]] || touch "$file"
-  grep -qF -- "$text" "$file" || echo "$text" >>"$file"
+# Root, NOPASSWD, and password-prompt sudoers can all run apply. Anything else
+# means the account has no sudo rights at all.
+can_sudo() {
+  [[ "$(id -u)" -eq 0 ]] && return 0
+  command -v sudo >/dev/null 2>&1 || return 1
+  local out
+  out=$(sudo -nv 2>&1) || [[ "$out" == *"password is required"* ]]
 }
 
-echo "fetching public key..."
-mkdir -p "$HOME/.ssh"
-append "$(curl -fsSL https://github.com/tobi.keys)" "$HOME/.ssh/authorized_keys"
+# apply needs sudo for system packages. It cannot grant itself rights, so print
+# the fix as a copy&paste command to run as root on the console or via an admin.
+if ! can_sudo; then
+  user=$(id -un)
+  echo "$user has no sudo rights; run this as root first:"
+  echo "  echo \"$user ALL=(ALL) ALL\" >> /etc/sudoers.d/$user"
+  echo
+fi
 
 echo "installing dotfiles..."
 mkdir -p "$(dirname "$DOTFILES_PATH")"
