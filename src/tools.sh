@@ -100,14 +100,14 @@ require_apply_tool "try"
 # activation code is evaluated during shell startup or first use.
 if command -v try >/dev/null 2>&1; then
   try() {
-    local out status
+    local out exit_status
     out=$(command try exec --path "${TRY_PATH:-$HOME/src/tries}" "$@" 2>/dev/tty)
-    status=$?
-    if [[ "$status" == 0 ]]; then
+    exit_status=$?
+    if [[ "$exit_status" == 0 ]]; then
       eval "$out"
     else
       printf '%s\n' "$out"
-      return "$status"
+      return "$exit_status"
     fi
   }
 fi
