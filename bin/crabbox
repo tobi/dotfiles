@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+binary="$HOME/.local/libexec/crabbox/0.41.5/crabbox"
+if [[ -n "${CRABBOX_CLOUDFLARE_RUNNER_TOKEN:-}" &&
+      -n "${CRABBOX_COORDINATOR_TOKEN:-}" &&
+      -n "${CRABBOX_ACCESS_CLIENT_ID:-}" &&
+      -n "${CRABBOX_ACCESS_CLIENT_SECRET:-}" ]]; then
+  exec "$binary" "$@"
+fi
+exec s \
+  CRABBOX_CLOUDFLARE_RUNNER_TOKEN \
+  CRABBOX_COORDINATOR_TOKEN \
+  CRABBOX_ACCESS_CLIENT_ID \
+  CRABBOX_ACCESS_CLIENT_SECRET \
+  -- "$binary" "$@"

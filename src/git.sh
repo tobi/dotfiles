@@ -2,19 +2,20 @@
 set -euo pipefail
 
 DOTFILES_PATH="${DOTFILES_PATH:-$HOME/.local/share/dotfiles}"
-local_config="$HOME/.config/git/config"
 shared_config="$DOTFILES_PATH/config/gitconfig"
 shared_include="~/.local/share/dotfiles/config/gitconfig"
 
+# Reconcile whichever global config git actually reads. A hand-rolled
+# ~/.gitconfig wins when present; otherwise build up the machine-local config
+# under ~/.config/git. `apply` keeps the chosen file and ensures it includes
+# the shared config.
 if [[ -e "$HOME/.gitconfig" ]]; then
-  printf '%s\n' \
-    "warning: ~/.gitconfig exists; dotfiles leave it untouched." \
-    "         Keep machine-local Git settings in ~/.config/git/config and" \
-    "         remove ~/.gitconfig if it causes precedence surprises." >&2
+  local_config="$HOME/.gitconfig"
+else
+  local_config="$HOME/.config/git/config"
+  mkdir -p "$(dirname "$local_config")"
+  touch "$local_config"
 fi
-
-mkdir -p "$(dirname "$local_config")"
-touch "$local_config"
 
 # Let GitHub CLI keep its machine-local HTTPS credential helpers in the local
 # config. Nothing it writes belongs in the public dotfiles checkout.
