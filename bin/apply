@@ -78,11 +78,70 @@ mkdir -p "$HOME/.config"
 ln -nfs "$DOTFILES_PATH/config/_config.starship_toml" "$HOME/.config/starship.toml"
 
 echo "installing shell entrypoints..."
-chmod +w "$HOME/.zshrc" 2>/dev/null || true
-printf '%s\n' "# Dotfiles" "source \"$DOTFILES_PATH/shell\"" >"$HOME/.zshrc"
-touch "$HOME/.zshrc.local"
-chmod -w "$HOME/.zshrc"
-ln -nfs "$HOME/.zshrc" "$HOME/.bashrc"
+# Keep each user rc file intact: only ensure the dotfiles source line and the
+# per-shell local override line are present. The local file is sourced last so
+# it wins, but only when it exists. Never rewrite user content.
+ensure_shell_rc() {
+  local name="$1"    # e.g. zshrc, bashrc
+  local rc="$HOME/.$name"
+  local local_rc="$HOME/.$name.local"
+  local source_line="source \"$DOTFILES_PATH/shell\""
+  local local_line="[ -f \"$local_rc\" ] && source \"$local_rc\""
+
+  # Migrate the legacy .bashrc -> .zshrc symlink to an independent file.
+  [[ ! -L "$rc" ]] || rm "$rc"
+
+  if [[ ! -f "$rc" ]]; then
+    {
+      echo "# Dotfiles"
+      echo "$source_line"
+      echo
+      echo "# Local overrides, sourced after dotfiles so they win"
+      echo "$local_line"
+    } >"$rc"
+    return 0
+  fi
+
+  local has_source=0 has_local=0
+  grep -qF "$source_line" "$rc" && has_source=1
+  grep -qF "$local_line" "$rc" && has_local=1
+
+  if [[ "$has_source" == 0 ]]; then
+    if [[ "$has_local" == 1 ]]; then
+      # Local must stay last: insert the dotfiles block just before it.
+      local tmp
+      tmp="$(mktemp)"
+      awk -v source_line="$source_line" -v local_line="$local_line" '
+        $0 == local_line {
+          print "# Dotfiles"
+          print source_line
+          print ""
+          print "# Local overrides, sourced after dotfiles so they win"
+          print local_line
+          next
+        }
+        { print }
+      ' "$rc" >"$tmp"
+      mv "$tmp" "$rc"
+    else
+      {
+        echo
+        echo "# Dotfiles"
+        echo "$source_line"
+        echo
+        echo "# Local overrides, sourced after dotfiles so they win"
+        echo "$local_line"
+      } >>"$rc"
+    fi
+    return 0
+  fi
+
+  # Dotfiles line already present; add the local override after it if missing.
+  [[ "$has_local" == 1 ]] || echo "$local_line" >>"$rc"
+}
+
+ensure_shell_rc zshrc
+ensure_shell_rc bashrc
 
 echo
 echo "dotfiles applied"

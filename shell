@@ -73,18 +73,15 @@ fi
 
 source "$DOTFILES_PATH/src/std.sh"
 
-load_local_overrides() {
-  [[ -f "$HOME/.${SHELL_ENV}rc.local" ]] && source "$HOME/.${SHELL_ENV}rc.local"
-}
-
 # Keep dumb terminals limited to paths, Mise, and safe deletion.
+# Local overrides are sourced by "$HOME/.${SHELL_ENV}rc" itself, after this
+# file, so they arrive last and win over dotfiles settings.
 if command_present "trash-put"; then
   alias rm="trash-put"
 else
   require_apply_tool "trash-put"
 fi
 if [[ "${TERM:-}" == dumb ]]; then
-  load_local_overrides
   return 0
 fi
 
@@ -92,9 +89,6 @@ source "$DOTFILES_PATH/src/history.sh"
 source "$DOTFILES_PATH/src/tools.sh"
 
 [[ "$VENDOR" != "apple" ]] || source "$DOTFILES_PATH/src/vendor.apple.sh"
-
-# See if we need some local overrides (.zshrc.local, .bashrc.local)
-load_local_overrides
 
 export PATH
 

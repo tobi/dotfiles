@@ -34,9 +34,15 @@ assert_install() {
   test -d "$dotfiles/.git"
   test -x "$mise"
   test "$("$mise" settings get github.use_git_credentials)" = "true"
-  test -L "$HOME/.bashrc"
-  test -L "$HOME/.config/starship.toml"
+  # Each rc file is a real file that sources dotfiles plus its own .local
+  # override (sourced last), without clobbering user content.
+  test -f "$HOME/.bashrc"
+  test ! -L "$HOME/.bashrc"
+  grep -qF "source \"$dotfiles/shell\"" "$HOME/.bashrc"
+  grep -qF "[ -f \"$HOME/.bashrc.local\" ] && source \"$HOME/.bashrc.local\"" "$HOME/.bashrc"
   grep -qF "source \"$dotfiles/shell\"" "$HOME/.zshrc"
+  grep -qF "[ -f \"$HOME/.zshrc.local\" ] && source \"$HOME/.zshrc.local\"" "$HOME/.zshrc"
+  test -L "$HOME/.config/starship.toml"
 
   test "$(git config user.name)" = "Tobi Lutke"
   test "$(git config user.email)" = "tobi@shopify.com"
@@ -92,6 +98,12 @@ assert_install
 # Re-applying must update and preserve a working installation.
 run_apply
 assert_install
+
+# Re-applying must not rewrite the rc entrypoints once they contain the lines.
+rc_sum_before=$(cksum "$HOME/.zshrc" "$HOME/.bashrc")
+run_apply
+assert_install
+test "$(cksum "$HOME/.zshrc" "$HOME/.bashrc")" = "$rc_sum_before"
 
 # The installer must never provision SSH access.
 test ! -e "$HOME/.ssh/authorized_keys"
