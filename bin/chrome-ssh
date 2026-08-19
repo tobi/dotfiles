@@ -5,14 +5,13 @@
 # Works on macOS and Linux.
 #
 # Usage:
-#   chrome-ssh [host] [port] [url...]
+#   chrome-ssh host [port] -- [chrome-parameter...]
 #
-#   host  SSH target (default: from config or "dev")
-#   port  Local SOCKS5 port (default: 9050)
-#   url   Optional URL(s) to open immediately
+#   host               SSH target (required)
+#   port               Local SOCKS5 port (default: 9050)
+#   chrome-parameter  Arguments passed directly to Chrome
 #
 # Examples:
-#   chrome-ssh
 #   chrome-ssh staging
 #   chrome-ssh prod 9999 https://internal.example.com
 #
@@ -26,29 +25,29 @@ set -euo pipefail
 # ── Help ───────────────────────────────────────────────────────
 if [[ "${1:-}" == "--help" ]] || [[ "${1:-}" == "-h" ]]; then
   cat <<'USAGE'
-Usage: chrome-ssh [options] [host] [port] [url...]
+Usage: chrome-ssh [options] host [port] -- [chrome-parameter...]
 
 Start an SSH SOCKS5 proxy and launch Chrome through it.
 
 Arguments:
-  host    SSH target (default: from config or "dev")
-  port    Local SOCKS5 port (default: 9050)
-  url     URL(s) to open immediately
+  host               SSH target (required)
+  port               Local SOCKS5 port (default: 9050)
+  --                 End chrome-ssh arguments
+  chrome-parameter  Arguments passed directly to Chrome
 
 Options:
   -h, --help    Show this help
   -l, --list    List SSH hosts from ~/.ssh/config
 
 Config: ~/.config/chrome-ssh/config
-  HOST=dev
   PORT=9050
   SSH_OPTS=-i ~/.ssh/deploy
 
 Examples:
-  chrome-ssh                          # proxy through default host
-  chrome-ssh staging                  # proxy through "staging"
-  chrome-ssh prod 9999                # custom port
-  chrome-ssh dev 9050 http://localhost:3000  # open a URL
+  chrome-ssh staging --               # proxy through "staging"
+  chrome-ssh prod 9999 --              # custom port
+  chrome-ssh dev -- https://internal.example.com
+  chrome-ssh dev 9050 -- --incognito https://internal.example.com
 USAGE
   exit 0
 elif [[ "${1:-}" == "--list" ]] || [[ "${1:-}" == "-l" ]]; then
@@ -63,18 +62,33 @@ fi
 
 # ── Config ─────────────────────────────────────────────────────
 CONFIG_FILE="$HOME/.config/chrome-ssh/config"
-DEFAULT_HOST="dev"
 DEFAULT_PORT=9050
 
 if [[ -f "$CONFIG_FILE" ]]; then
   source "$CONFIG_FILE"
 fi
 
-HOST="${1:-${HOST:-$DEFAULT_HOST}}"; shift 2>/dev/null || true
-PORT="${1:-${PORT:-$DEFAULT_PORT}}"; shift 2>/dev/null || true
+PORT="${PORT:-$DEFAULT_PORT}"
 
-# Remaining args are URLs to open
-URLS=("$@")
+if [[ $# -eq 0 ]]; then
+  printf '%s\n' 'chrome-ssh: hostname is required' >&2
+  printf '%s\n' 'Usage: chrome-ssh host [port] -- [chrome-parameter...]' >&2
+  exit 2
+fi
+
+HOST="$1"
+shift
+if [[ "${1:-}" =~ ^[0-9]+$ ]]; then
+  PORT="$1"
+  shift
+fi
+if [[ "${1:-}" != "--" ]]; then
+  printf '%s\n' 'chrome-ssh: expected -- before Chrome parameters' >&2
+  printf '%s\n' 'Usage: chrome-ssh host [port] -- [chrome-parameter...]' >&2
+  exit 2
+fi
+shift
+CHROME_PARAMS=("$@")
 
 # ── Colors ─────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -172,19 +186,33 @@ else
 fi
 mkdir -p "$PROFILE_DIR/Default"
 
-# ── Theme (orange frame so you know it's the proxy browser) ───
+# ── Theme (brown frame so you know it's the proxy browser) ────
 PREFS="$PROFILE_DIR/Default/Preferences"
+THEME_COLOR=-7650029 # #8B4513 (saddle brown, ARGB)
+
 if [[ ! -f "$PREFS" ]]; then
-  cat > "$PREFS" <<'EOF'
+  cat > "$PREFS" <<EOF
 {
   "browser": {
     "theme": {
       "color_scheme": 2,
-      "user_color": -29696
+      "user_color": $THEME_COLOR
     }
   }
 }
 EOF
+else
+  # Preserve the rest of Chrome's preferences while forcing the theme.
+  PREFS_TMP="$PREFS.tmp.$$"
+  if sed -E \
+    -e "s/\"color_scheme\"[[:space:]]*:[[:space:]]*[0-9]+/\"color_scheme\": 2/" \
+    -e "s/\"user_color\"[[:space:]]*:[[:space:]]*-?[0-9]+/\"user_color\": $THEME_COLOR/" \
+    "$PREFS" >"$PREFS_TMP"; then
+    chmod 600 "$PREFS_TMP"
+    mv "$PREFS_TMP" "$PREFS"
+  else
+    rm -f "$PREFS_TMP"
+  fi
 fi
 
 # ── Cleanup ───────────────────────────────────────────────────
@@ -233,16 +261,17 @@ CHROME_ARGS=(
   --proxy-server="socks5://localhost:$PORT"
   --host-resolver-also-proxy
   --user-data-dir="$PROFILE_DIR"
+  --disable-sync
   --no-first-run
   --disable-default-apps
   --proxy-bypass-list="<-loopback>"
 )
 
 # Open URLs if provided
-if [[ ${#URLS[@]} -gt 0 ]]; then
-  CHROME_ARGS+=("${URLS[@]}")
-  log_info "Opening: ${URLS[*]:0:80}"
-  if [[ ${#URLS[*]} -gt 80 ]]; then echo "  ... (${#URLS[@]} total)" >&2; fi
+if [[ ${#CHROME_PARAMS[@]} -gt 0 ]]; then
+  CHROME_ARGS+=("${CHROME_PARAMS[@]}")
+  log_info "Opening: ${CHROME_PARAMS[*]:0:80}"
+  if [[ ${#CHROME_PARAMS[*]} -gt 80 ]]; then echo "  ... (${#CHROME_PARAMS[@]} total)" >&2; fi
 fi
 
 echo ""
