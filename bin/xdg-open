@@ -26,6 +26,48 @@ is_url_like() {
   esac
 }
 
+# file:///path -> /path. Remote file:// hosts are not local files.
+file_url_to_path() {
+  local target="$1"
+  case "$target" in
+    file://localhost/*) target="/${target#file://localhost/}" ;;
+    file:///*) target="${target#file://}" ;;
+    file://*) return 1 ;;
+    *) ;;
+  esac
+  if [[ "$target" == *%* ]]; then
+    printf -v target '%b' "${target//%/\\x}"
+  fi
+  printf '%s' "$target"
+}
+
+is_appimage_file() {
+  local path="$1" magic
+  [[ -f "$path" ]] || return 1
+  case "$path" in
+    *.AppImage | *.appimage | *.APPIMAGE) ;;
+    *) return 1 ;;
+  esac
+  magic="$(head -c 4 "$path" 2>/dev/null)" || return 1
+  [[ "$magic" == $'\x7fELF' ]]
+}
+
+# Downloads never set +x. System xdg-open will not exec application/x-executable
+# either (no MIME handler), so it falls through to $BROWSER — firefox first.
+try_open_appimage() {
+  [[ $# -eq 1 ]] || return 1
+  local path
+  path="$(file_url_to_path "$1")" || return 1
+  is_appimage_file "$path" || return 1
+  if [[ ! -x "$path" ]]; then
+    chmod u+x "$path" || return 1
+  fi
+  is_graphical_local_session || return 1
+  "$path" >/dev/null 2>&1 &
+  disown $! 2>/dev/null || true
+  return 0
+}
+
 try_open() {
   if [[ "$(uname -s 2>/dev/null || true)" == "Darwin" ]] &&
     [[ -x /usr/bin/open ]]; then
@@ -86,6 +128,10 @@ print_fallback() {
   fi
   return 0
 }
+
+if [[ $# -gt 0 ]] && try_open_appimage "$@"; then
+  exit 0
+fi
 
 if [[ $# -gt 0 ]] && try_open "$@"; then
   exit 0
