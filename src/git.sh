@@ -31,6 +31,7 @@ shared_keys=(
   user.email
   user.signingkey
   gpg.format
+  gpg.ssh.allowedsignersfile
   commit.verbose
   commit.gpgsign
   tag.sort
@@ -66,6 +67,22 @@ done < <(git config --file "$local_config" --get-all include.path 2>/dev/null ||
 
 if [[ "$include_present" == 0 ]]; then
   git config --file "$local_config" --add include.path "$shared_include"
+fi
+
+# Local verification of SSH-signed commits (git log --show-signature) needs an
+# allowed-signers file. Register this machine's signing key under the commit
+# email; the file accumulates one line per machine and is never rewritten.
+signing_key="$HOME/.ssh/id_ed25519.pub"
+allowed_signers="$HOME/.ssh/allowed_signers"
+if [[ -r "$signing_key" ]]; then
+  email="$(git config --file "$shared_config" user.email)"
+  key_material="$(awk '{print $1" "$2}' "$signing_key")"
+  mkdir -p "$(dirname "$allowed_signers")"
+  touch "$allowed_signers"
+  chmod 600 "$allowed_signers"
+  if ! grep -qF "$key_material" "$allowed_signers"; then
+    printf '%s namespaces="git" %s\n' "$email" "$key_material" >>"$allowed_signers"
+  fi
 fi
 
 # This setting is intentionally local to the dotfiles checkout. A global
