@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+# ssh-exec — sync $PWD to the same path on a remote, then run a command there.
+#
+# Usage:
+#   ssh-exec <remote> -- <command>...
+#   ssh-exec <remote> sync
+#   ssh-exec <remote> get <pattern>...
+#
+# Symlink to a host name to skip the remote argument:
+#   ln -s ssh-exec ~/.local/bin/gb300
+#   gb300 -- cargo run
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  ssh-exec <remote> -- <command>...
+  ssh-exec <remote> sync
+  ssh-exec <remote> get <pattern>...
+
+Sync the current directory to the same path on <remote>, then run
+<command> there in bash.
+
+  sync  copy files up and stop
+  get   copy matching files from the remote directory back here
+
+Ignored on upload: .git, .gitignore, plus build junk (target,
+node_modules, .venv, __pycache__, dist, and similar).
+
+Examples:
+  ssh-exec dev -- cargo run
+  ssh-exec dev -- cargo run --release
+  ssh-exec dev sync
+  ssh-exec dev get 'mask/**/*.bin'
+
+  ln -s ssh-exec ~/.local/bin/gb300
+  gb300 -- cargo run
+  gb300 sync
+  gb300 get 'target/release/mybin'
+USAGE
+}
+
+die() {
+  printf 'ssh-exec: %s\n' "$*" >&2
+  exit 1
+}
+
+prog=$(basename -- "$0")
+
+if [[ "${1:-}" == -h || "${1:-}" == --help ]]; then
+  usage
+  exit 0
+fi
+
+if [[ "$prog" == ssh-exec ]]; then
+  [[ $# -ge 1 ]] || { usage >&2; exit 2; }
+  remote=$1
+  shift
+else
+  remote=$prog
+fi
+
+[[ -n "${remote:-}" ]] || die "remote is required"
+command -v rsync >/dev/null 2>&1 || die "rsync is required"
+command -v ssh >/dev/null 2>&1 || die "ssh is required"
+[[ "$PWD" != / ]] || die "refusing to sync /"
+
+mode='exec'
+if [[ "${1:-}" == get ]]; then
+  mode='get'
+  shift
+  [[ "${1:-}" != -- ]] || shift
+  [[ $# -ge 1 ]] || die "get requires a pattern, e.g. 'mask/**/*.bin'"
+elif [[ "${1:-}" == sync ]]; then
+  mode='sync'
+  shift
+  [[ $# -eq 0 ]] || die "sync does not take extra arguments"
+elif [[ "${1:-}" == -- ]]; then
+  shift
+  [[ $# -ge 1 ]] || die "missing command after --"
+else
+  usage >&2
+  exit 2
+fi
+
+quoted_pwd=$(printf '%q' "$PWD")
+
+rsync_progress=()
+if rsync --info=help >/dev/null 2>&1; then
+  rsync_progress=(--info=progress2)
+else
+  rsync_progress=(--progress)
+fi
+
+remote_dir_state() {
+  ssh "$remote" -- "if test -d $quoted_pwd; then echo EXISTS; else echo MISSING; fi"
+}
+
+confirm_create() {
+  cat <<EOF
+Remote directory does not exist yet:
+
+  $remote:$PWD
+
+This will create that path and copy the current directory there,
+skipping .gitignore matches and build artifacts.
+EOF
+  local ans=
+  if [[ -t 0 ]]; then
+    printf 'Create and copy? [y/N] '
+    read -r ans
+  elif [[ -r /dev/tty ]]; then
+    printf 'Create and copy? [y/N] ' >/dev/tty
+    read -r ans </dev/tty
+  else
+    die "refusing to create $remote:$PWD without a terminal to confirm"
+  fi
+  case "$ans" in
+    y|Y|yes|YES) ;;
+    *) die "aborted" ;;
+  esac
+}
+
+mkdir_remote() {
+  ssh "$remote" -- "mkdir -p $quoted_pwd"
+}
+
+rsync_push() {
+  local filter=() junk
+  if rsync --help 2>&1 | grep -q -- '--filter'; then
+    filter=(--filter ':- .gitignore')
+  elif [[ -f .gitignore ]]; then
+    filter=(--exclude-from .gitignore)
+  fi
+
+  local excludes=()
+  for junk in \
+    .git/ target/ node_modules/ .venv/ venv/ env/ \
+    __pycache__/ .pytest_cache/ .mypy_cache/ .ruff_cache/ \
+    .tox/ .nox/ .direnv/ .cache/ .hypothesis/ .ipynb_checkpoints/ \
+    dist/ build/ _build/ .next/ .nuxt/ .turbo/ .parcel-cache/ \
+    .output/ .svelte-kit/ coverage/ htmlcov/ .nyc_output/ \
+    CMakeFiles/ cmake-build-debug/ cmake-build-release/ \
+    .gradle/ zig-out/ .zig-cache/ .dart_tool/ .elixir_ls/ \
+    elm-stuff/ .stack-work/ Pods/ .bundle/ vendor/bundle/ \
+    .sass-cache/ .eggs/ '*.egg-info' bower_components/ .pnpm-store/ \
+    .wrangler/ .terraform/ .vagrant/ .rustup/ .pulumi-home/ .idea/ \
+    tmp/ temp/ .tmp/ logs/ \
+    .pi/ .reve/ .codex/ .ori/ .leve/ .rbagent/ .opencode/ .grok/ .adc/ \
+    '*.pyc' '*.pyo' '*.log' '*.swp' '*.swo' '*~' '*.tsbuildinfo' '*.rs.bk' \
+    .DS_Store Thumbs.db .senv
+  do
+    excludes+=(--exclude "$junk")
+  done
+
+  rsync -a "${rsync_progress[@]}" "${excludes[@]}" "${filter[@]}" \
+    "$PWD/" "$remote:$PWD/"
+}
+
+rsync_pull() {
+  local includes=() pattern
+  for pattern in "$@"; do
+    includes+=(--include "$pattern")
+  done
+  rsync -a "${rsync_progress[@]}" \
+    --include '*/' \
+    "${includes[@]}" \
+    --exclude '*' \
+    --prune-empty-dirs \
+    "$remote:$PWD/" "$PWD/"
+}
+
+state=$(remote_dir_state)
+state=${state##*$'\n'}
+case "$state" in
+  EXISTS) ;;
+  MISSING)
+    if [[ "$mode" == get ]]; then
+      die "remote directory $remote:$PWD does not exist"
+    fi
+    confirm_create
+    mkdir_remote
+    ;;
+  *) die "could not reach $remote" ;;
+esac
+
+if [[ "$mode" == get ]]; then
+  printf 'pulling from %s:%s\n' "$remote" "$PWD"
+  rsync_pull "$@"
+  exit 0
+fi
+
+printf 'syncing . -> %s:%s\n' "$remote" "$PWD"
+if ! rsync_push; then
+  mkdir_remote
+  rsync_push
+fi
+if [[ "$mode" == sync ]]; then
+  exit 0
+fi
+printf 'running on %s: %s\n' "$remote" "$*"
+quoted_cmd=$(printf '%q ' "$@")
+ssh_tty=()
+[[ -t 1 ]] && ssh_tty+=(-t)
+exec ssh "${ssh_tty[@]}" "$remote" -- \
+  "bash -lc $(printf '%q' "cd $quoted_pwd && $quoted_cmd")"
