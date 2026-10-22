@@ -76,6 +76,7 @@ bash "$DOTFILES_PATH/src/git.sh"
 echo "linking configuration..."
 mkdir -p "$HOME/.config"
 ln -nfs "$DOTFILES_PATH/config/_config.starship_toml" "$HOME/.config/starship.toml"
+bash "$DOTFILES_PATH/src/ghostty.sh"
 
 echo "installing shell entrypoints..."
 # Keep each user rc file intact: only ensure the dotfiles source line and the
