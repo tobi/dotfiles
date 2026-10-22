@@ -24,3 +24,20 @@ shim with:
 ```bash
 apply -u
 ```
+
+## Ghostty
+
+`apply` links shared Ghostty preferences from `config/_config.ghostty.config`
+on machines without an existing config. Existing configs are left untouched.
+The shared preferences enable all shell integration features (including automatic
+SSH terminfo installation), close confirmation for active commands, and hiding
+the mouse pointer while typing. Modified Enter and clipboard bindings are shared
+as well. Ghostty and a particular font are not installed by this step.
+
+Keep machine-specific fonts, themes, rendering options, and bindings in
+`~/.config/ghostty/local.conf`. This optional file loads after the shared config
+and can override it. To adopt shared preferences on an existing machine, back up
+its config, move the settings you want to preserve into `local.conf`, then replace
+`~/.config/ghostty/config` with a symlink to the shared file. Open a new terminal
+to pick up shell integration changes. `tailscale ssh` bypasses Ghostty's shell
+`ssh` wrapper; normal `ssh` over Tailscale can use that wrapper.
