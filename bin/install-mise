@@ -34,8 +34,9 @@ if [[ "$update" == 1 ]]; then
   mise_bin=$(command -v mise 2>/dev/null || printf '%s' "$mise_bin")
 fi
 
-# `mise use` records exact versions, so normal `mise x <tool>` calls never
-# resolve `latest`. Updates happen explicitly through `apply -u`.
+# Everyday tools stay on exact pins so `mise x` never resolves `latest`.
+# Agent CLIs are the exception: they opt into mise auto_update below.
+# Everything else still updates through `apply -u`.
 "$mise_bin" settings set pin true
 "$mise_bin" settings set github.use_git_credentials true
 
@@ -50,17 +51,54 @@ fi
 "$mise_bin" settings set ruby.precompiled_url \
   'https://github.com/jdx/ruby/releases/download/{version}/ruby-{version}.{platform}.tar.gz'
 
+# Agent CLIs from bin/shims. Exact pins are never auto-updated, so these
+# stay on `latest` and check for a newer build every four hours.
+MISE_CLANKERS=(pi codex opencode oh-my-pi)
+
+mise_tools_key() {
+  case "$1" in
+    *[!A-Za-z0-9_-]*) printf 'tools."%s"' "$1" ;;
+    *) printf 'tools.%s' "$1" ;;
+  esac
+}
+
+mise_is_clanker() {
+  local t
+  for t in "${MISE_CLANKERS[@]}" github:can1357/oh-my-pi; do
+    [[ "$1" == "$t" ]] && return 0
+  done
+  return 1
+}
+
+enable_clanker_auto_update() {
+  local tool
+  for tool in "${MISE_CLANKERS[@]}"; do
+    "$mise_bin" config get -g "$(mise_tools_key "$tool")" >/dev/null 2>&1 || continue
+    "$mise_bin" config set -g "$(mise_tools_key "$tool").version" latest
+    "$mise_bin" config set -g "$(mise_tools_key "$tool").auto_update" 4h
+    "$mise_bin" config set -g "$(mise_tools_key "$tool").minimum_release_age" 0s
+  done
+}
+
 # Migrate old fuzzy global entries (latest/lts) to their currently installed
 # versions without upgrading them. Once pinned, subsequent applies are no-ops.
+# Only rewrite tools already in the user config so system lists (Omarchy) are
+# not copied in as pins. Skip agent CLIs so this does not undo auto_update.
 while read -r tool version _ requested _; do
   [[ -n "$tool" && -n "$version" ]] || continue
   [[ "$requested" != "$version" ]] || continue
+  if mise_is_clanker "$tool"; then
+    continue
+  fi
+  "$mise_bin" config get -g "$(mise_tools_key "$tool")" >/dev/null 2>&1 || continue
   "$mise_bin" use -g --pin "$tool@$version"
 done < <("$mise_bin" ls --global --installed --no-header 2>/dev/null || true)
 
 # Retire the old registry mapping; Herdr now installs from herdrdev/herdr via
 # its standalone shim. Keep the already-downloaded binary for cache reuse.
 "$mise_bin" unuse -g --no-prune herdr >/dev/null 2>&1 || true
+# omp comes from the oh-my-pi registry shortname, not this raw github backend.
+"$mise_bin" unuse -g --no-prune github:can1357/oh-my-pi >/dev/null 2>&1 || true
 
 # Starship is the one eager mise tool because shell startup consumes it.
 if ! "$mise_bin" where starship >/dev/null 2>&1; then
@@ -103,3 +141,7 @@ if [[ "$update" == 1 ]]; then
     fi
   fi
 fi
+
+# After pin migration and `upgrade --bump`, put agent CLIs back on latest so
+# mise auto_update can move them. No-op for tools nobody has installed yet.
+enable_clanker_auto_update

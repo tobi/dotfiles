@@ -18,8 +18,9 @@ apply
 
 Portable tools are installed lazily on first use from `bin/shims`; an existing
 system or Homebrew command wins because that directory is last on `PATH`. Disable
-them entirely with `DOTFILES_NO_SHIMS=1`. Upgrade tools already installed by a
-shim with:
+them entirely with `DOTFILES_NO_SHIMS=1`. Agent CLIs (`pi`, `omp`, `opencode`,
+`codex`) opt into mise `auto_update` and check for a newer build every four
+hours. Upgrade other tools already installed by a shim with:
 
 ```bash
 apply -u

@@ -1,19 +1,11 @@
 #!/bin/bash
 set -e
 
-if ! mise where bun >/dev/null 2>&1; then
-  mise use -g --pin "bun@latest" || exit 1
+tool="opencode"
+if ! mise where "$tool" >/dev/null 2>&1; then
+  mise use -g --pin "$tool@latest" || exit 1
+  mise config set -g "tools.${tool}.version" latest
+  mise config set -g "tools.${tool}.auto_update" 4h
+  mise config set -g "tools.${tool}.minimum_release_age" 0s
 fi
-bun="$(mise where bun)/bin/bun"
-if [[ -n "${BUN_INSTALL:-}" ]]; then
-  bun_home="$BUN_INSTALL"
-elif [[ -n "${XDG_CACHE_HOME:-}" ]]; then
-  bun_home="$XDG_CACHE_HOME/.bun"
-else
-  bun_home="$HOME/.bun"
-fi
-bin="$bun_home/bin/opencode"
-if [[ ! -x "$bin" ]]; then
-  "$bun" add --global "opencode-ai@latest" || exit 1
-fi
-exec mise x bun -- "$bin" "$@"
+exec mise x "$tool" -- "opencode" "$@"
