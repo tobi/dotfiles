@@ -79,66 +79,89 @@ ln -nfs "$DOTFILES_PATH/config/_config.starship_toml" "$HOME/.config/starship.to
 bash "$DOTFILES_PATH/src/ghostty.sh"
 
 echo "installing shell entrypoints..."
-# Keep each user rc file intact: only ensure the dotfiles source line and the
-# per-shell local override line are present. The local file is sourced last so
-# it wins, but only when it exists. Never rewrite user content.
+# Keep each user rc file organized around a small generated block. Anything
+# outside that block is user configuration and can be moved to the per-shell
+# .local file after the user has seen it.
 ensure_shell_rc() {
   local name="$1"    # e.g. zshrc, bashrc
   local rc="$HOME/.$name"
   local local_rc="$HOME/.$name.local"
   local source_line="source \"$DOTFILES_PATH/shell\""
   local local_line="[ -f \"$local_rc\" ] && source \"$local_rc\""
+  local local_line_home="[ -f \"\$HOME/.$name.local\" ] && source \"\$HOME/.$name.local\""
+  local marker="# End of automatically generated configuration"
+  local gunk_file gunk_lines answer tmp
 
   # Migrate the legacy .bashrc -> .zshrc symlink to an independent file.
   [[ ! -L "$rc" ]] || rm "$rc"
 
-  if [[ ! -f "$rc" ]]; then
-    {
-      echo "# Dotfiles"
-      echo "$source_line"
-      echo
-      echo "# Local overrides, sourced after dotfiles so they win"
-      echo "$local_line"
-    } >"$rc"
-    return 0
+  gunk_file="$(mktemp)"
+  if [[ -f "$rc" ]]; then
+    awk -v source_line="$source_line" -v local_line="$local_line" \
+      -v local_line_home="$local_line_home" -v marker="$marker" '
+      $0 == "# Dotfiles" || $0 == source_line ||
+      $0 == "# Local overrides, sourced after dotfiles so they win" ||
+      $0 == local_line || $0 == local_line_home || $0 == marker || NF == 0 { next }
+      { print }
+    ' "$rc" >"$gunk_file"
   fi
 
-  local has_source=0 has_local=0
-  grep -qF "$source_line" "$rc" && has_source=1
-  grep -qF "$local_line" "$rc" && has_local=1
+  gunk_lines="$(wc -l <"$gunk_file")"
+  if ((gunk_lines > 0)); then
+    echo
+    echo "* There are $gunk_lines lines of gunk in $rc:"
+    echo "---"
+    while IFS= read -r line; do
+      printf '%s\n' "$line"
+    done <"$gunk_file"
+    echo "---"
 
-  if [[ "$has_source" == 0 ]]; then
-    if [[ "$has_local" == 1 ]]; then
-      # Local must stay last: insert the dotfiles block just before it.
-      local tmp
-      tmp="$(mktemp)"
-      awk -v source_line="$source_line" -v local_line="$local_line" '
-        $0 == local_line {
-          print "# Dotfiles"
-          print source_line
-          print ""
-          print "# Local overrides, sourced after dotfiles so they win"
-          print local_line
-          next
-        }
-        { print }
-      ' "$rc" >"$tmp"
-      mv "$tmp" "$rc"
+    answer=""
+    if [[ -t 0 ]]; then
+      printf 'Append this gunk to %s? [y/N] ' "$local_rc" >&2
+      read -r answer || answer=""
     else
-      {
-        echo
-        echo "# Dotfiles"
-        echo "$source_line"
-        echo
-        echo "# Local overrides, sourced after dotfiles so they win"
-        echo "$local_line"
-      } >>"$rc"
+      echo "* No interactive terminal; leaving them in $rc."
     fi
-    return 0
+
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+      if [[ -s "$local_rc" ]]; then
+        printf '\n' >>"$local_rc"
+      fi
+      while IFS= read -r line; do
+        printf '%s\n' "$line"
+      done <"$gunk_file" >>"$local_rc"
+      : >"$gunk_file"
+      echo "* Appended to $local_rc."
+    fi
   fi
 
-  # Dotfiles line already present; add the local override after it if missing.
-  [[ "$has_local" == 1 ]] || echo "$local_line" >>"$rc"
+  tmp="$(mktemp)"
+  {
+    echo "# Dotfiles"
+    echo "$source_line"
+    echo
+    echo "# Local overrides, sourced after dotfiles so they win"
+    echo "$local_line"
+    echo "$marker"
+  } >"$tmp"
+
+  if ((gunk_lines > 0)) && [[ -s "$gunk_file" ]]; then
+    # The user declined: preserve the lines, but keep the generated block
+    # authoritative and easy to find.
+    {
+      while IFS= read -r line; do
+        printf '%s\n' "$line"
+      done <"$gunk_file"
+      cat "$tmp"
+    } >"$rc"
+    rm "$tmp"
+  else
+    mv "$tmp" "$rc"
+  fi
+
+  chmod u+rw "$rc"
+  rm -f "$gunk_file"
 }
 
 ensure_shell_rc zshrc

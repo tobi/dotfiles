@@ -40,8 +40,10 @@ assert_install() {
   test ! -L "$HOME/.bashrc"
   grep -qF "source \"$dotfiles/shell\"" "$HOME/.bashrc"
   grep -qF "[ -f \"$HOME/.bashrc.local\" ] && source \"$HOME/.bashrc.local\"" "$HOME/.bashrc"
+  grep -qF "# End of automatically generated configuration" "$HOME/.bashrc"
   grep -qF "source \"$dotfiles/shell\"" "$HOME/.zshrc"
   grep -qF "[ -f \"$HOME/.zshrc.local\" ] && source \"$HOME/.zshrc.local\"" "$HOME/.zshrc"
+  grep -qF "# End of automatically generated configuration" "$HOME/.zshrc"
   test -L "$HOME/.config/starship.toml"
 
   test "$(git config user.name)" = "Tobi Lutke"
